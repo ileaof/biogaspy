@@ -1,0 +1,7 @@
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.5
+pandas>=2.0
+# opcionais:
+# openpyxl>=3.0   # export Excel
+# pytest>=7.0     # testes

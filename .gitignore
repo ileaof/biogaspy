@@ -1,0 +1,65 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+wheels/
+share/python-wheels/
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# --- Virtual envs ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Testing / lint / type-check caches ---
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+
+# --- Build / packaging ---
+*.whl
+MANIFEST
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Generated example outputs (regenerable via Examples/* + CLI) ---
+examples_output/
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Claude Code harness (local session data, not source) ---
+.claude/
+
+# --- Temporary / scratch files ---
+_hutt.txt
+*.tmp
