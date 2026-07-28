@@ -73,10 +73,17 @@ a especificação completa (nível Aspen/DWSIM).
       purga), múltiplos leitos, integração temporal, balanço de energia do leito.
 - [ ] **Membranas multi-estágio**: reciclo, cascata, modelo cross-flow resolvido
       (não só corte de estágio fixo).
-- [~] **Selexol / Rectisol**: seletividade H₂S/CO₂ e regime de baixa T agora
-      implementados e testados (`test_solvents.py`); convenção de van't Hoff
-      corrigida. Falta: calibrar href absolutos contra dados de solubilidade,
-      propriedades físicas (ρ/μ/Cp) por correlação em vez de constantes.
+- [x] **Selexol / Rectisol calibrados vs literatura**: constantes de Henry
+      absolutas (Href @298 K) calibradas contra dados reais de solubilidade --
+      Selexol (DEPG) vs Henni et al. (2005) e Burr & Lyddon (CO2 3,0 MPa, CH4 38,
+      H2S 0,34; seletividade H2S/CO2 ~8,8); Rectisol (metanol) vs Décultot et al.
+      (2019, série T de CO2: 103/142/185 MPa @283/298/313, dH=15 kJ/mol
+      regressado), Leu & Robinson (1992, H2S ~5 MPa), Brunner (1987, CH4).
+      Validado em `tests/test_validation.py` (7 testes: H absolutos, série T de
+      Décultot, seletividades, comparação vs água). Antes os Href eram
+      placeholders descalibrados (~9-10x de erro). Falta: dH de H2S/CH4/N2 em
+      metanol (estimados, sem regressão direta), propriedades físicas (ρ/μ/Cp)
+      por correlação em vez de constantes.
 - [ ] **Absorção híbrida**: membrana + amina integrada.
 
 ## Interface e exportação
@@ -98,8 +105,9 @@ a especificação completa (nível Aspen/DWSIM).
 - [x] Cobertura ampliada: transporte e hidráulica agora testados direto
       (`test_masstransfer.py`, `test_hydraulics.py`); sensibilidade
       (`test_sensitivity.py`); DEA/MDEA/Selexol/Rectisol (`test_solvents.py`);
-      MDEA vs Huttenhuis (`test_validation.py`). Falta: economia, propriedades
-      de transporte (viscosidade/condutividade de mistura), calibração de VLE
-      para DEA (dados abertos ainda não encontrados) e href para Selexol/Rectisol.
+      MDEA vs Huttenhuis e Selexol/Rectisol vs Henni/Décultot/Leu
+      (`test_validation.py`). Falta: economia, propriedades de transporte
+      (viscosidade/condutividade de mistura), calibração de VLE para DEA (dados
+      abertos ainda não encontrados), dH de H2S/CH4/N2 em metanol (estimados).
 - [ ] CI (GitHub Actions): lint, pytest em Linux/Windows/macOS.
 - [ ] Empacotamento no PyPI.

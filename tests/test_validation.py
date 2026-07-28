@@ -239,3 +239,77 @@ def test_absorber_adiabatic_energy_balance_order():
     dT_obs = r.T_profile.max() - 313.15
     # concordância dentro de fator 3 (calor distribuído entre fases e estágios)
     assert 0.2 < dT_obs / dT_est < 3.0, f"ΔT_obs={dT_obs:.1f} ΔT_est={dT_est:.1f}"
+
+
+# ------------------------- Solventes físicos vs literatura --------------- #
+# Constantes de Henry H [Pa] (P·y = H·x) dos solventes físicos calibradas:
+#   Selexol (DEPG): Henni et al. (2005) + Burr & Lyddon (seletividades).
+#   Rectisol (metanol): Décultot et al. (2019) p/ CO2 (série T), Leu &
+#     Robinson (1992) p/ H2S, Brunner (1987) p/ CH4.
+# H recuperado como K_value·P e comparado aos valores tabulados em MPa (×1e6).
+from biogassim.Solvents import SelexolSolvent, RectisolSolvent
+
+_SELEXOL = SelexolSolvent()
+_RECTISOL = RectisolSolvent()
+
+
+def test_selexol_henry_absolute_matches_henni():
+    """H(CO2) e H(CH4) em DEPG a 298 K vs Henni et al. (2005): 3,0 e 38 MPa."""
+    T, P = 298.15, 1.0e5
+    H_co2 = _SELEXOL.K_value("CO2", T, P, [0, 1, 0, 0]) * P / 1.0e6    # MPa
+    H_ch4 = _SELEXOL.K_value("CH4", T, P, [1, 0, 0, 0]) * P / 1.0e6
+    assert abs(H_co2 - 3.0) / 3.0 < 0.15, f"H_CO2={H_co2:.2f} MPa"
+    assert abs(H_ch4 - 38.0) / 38.0 < 0.15, f"H_CH4={H_ch4:.1f} MPa"
+
+
+def test_selexol_h2s_co2_selectivity_burr_lyddon():
+    """Seletividade H2S/CO2 em DEPG ~8,8 (Burr & Lyddon): H_CO2/H_H2S ~8-10."""
+    T, P = 298.15, 1.0e5
+    H_co2 = _SELEXOL.K_value("CO2", T, P, [0, 1, 0, 0]) * P
+    H_h2s = _SELEXOL.K_value("H2S", T, P, [0, 0, 0, 1]) * P
+    sel = H_co2 / H_h2s
+    assert 7.0 < sel < 11.0, f"H2S/CO2 selectivity={sel:.1f}"
+
+
+def test_rectisol_co2_henry_absolute_matches_decultot():
+    """H(CO2) em metanol a 298 K ~142 MPa (Décultot et al. 2019)."""
+    T, P = 298.15, 1.0e5
+    H = _RECTISOL.K_value("CO2", T, P, [0, 1, 0, 0]) * P / 1.0e6
+    assert abs(H - 142.0) / 142.0 < 0.10, f"H_CO2={H:.1f} MPa"
+
+
+def test_rectisol_co2_temperature_series_decultot():
+    """A dH regressada reproduz a série de Décultot: 103 MPa @283, 185 @313 K
+    (valida a dependência de temperatura, não só o ponto a 298 K)."""
+    P = 1.0e5
+    H283 = _RECTISOL.K_value("CO2", 283.15, P, [0, 1, 0, 0]) * P / 1.0e6
+    H313 = _RECTISOL.K_value("CO2", 313.15, P, [0, 1, 0, 0]) * P / 1.0e6
+    assert abs(H283 - 103.0) / 103.0 < 0.08, f"H@283={H283:.1f} MPa"
+    assert abs(H313 - 185.0) / 185.0 < 0.08, f"H@313={H313:.1f} MPa"
+
+
+def test_rectisol_h2s_henry_matches_leu_robinson():
+    """H(H2S) em metanol a 298 K ~5 MPa (Leu & Robinson 1992, diluição inf.)."""
+    T, P = 298.15, 1.0e5
+    H = _RECTISOL.K_value("H2S", T, P, [0, 0, 0, 1]) * P / 1.0e6
+    assert 2.5 < H < 10.0, f"H_H2S={H:.2f} MPa"
+
+
+def test_rectisol_h2s_more_soluble_than_co2():
+    """Rectisol é seletivo a H2S: H(H2S) << H(CO2) a 298 K (seletividade >10)."""
+    T, P = 298.15, 1.0e5
+    H_co2 = _RECTISOL.K_value("CO2", T, P, [0, 1, 0, 0]) * P
+    H_h2s = _RECTISOL.K_value("H2S", T, P, [0, 0, 0, 1]) * P
+    assert H_co2 / H_h2s > 10.0, f"selectivity={H_co2/H_h2s:.1f}"
+
+
+def test_physical_solvents_more_soluble_than_water():
+    """CO2 é muito mais solúvel em DEPG (~55x) e em metanol que em água."""
+    from biogassim.Thermodynamics.Henry import henry_water
+    hl = henry_water()
+    H_water = hl.H("CO2", 298.15)                          # Pa
+    H_selexol = _SELEXOL.K_value("CO2", 298.15, 1e5, [0, 1, 0, 0]) * 1e5
+    H_methanol = _RECTISOL.K_value("CO2", 298.15, 1e5, [0, 1, 0, 0]) * 1e5
+    # Selexol: ~55x mais solúvel (H ~55x menor); metanol também mais solúvel
+    assert H_water / H_selexol > 40.0, f"DEPG/water={H_water/H_selexol:.1f}"
+    assert H_water / H_methanol > 1.0, f"MeOH/water={H_water/H_methanol:.2f}"
