@@ -4,13 +4,14 @@ Simulador científico de **upgrading de biogás** (remoção de CO₂) em Python
 orientado a objetos e de código aberto. Projeto, análise e comparação de processos de
 purificação para produção de biometano a partir de biogás **47% CH₄ / 53% CO₂**.
 
-> **Status (v0.2):** 133 testes passando. Absorvedor com Newton global e balanço de
+> **Status (v0.2):** 149 testes passando. Absorvedor com Newton global e balanço de
 > energia adiabático; especiação **Kent-Eisenberg** rigorosa (MEA/DEA/MDEA); hidráulica
 > de coluna (flooding de Eckert, perda de carga de Stichlmair); estudos de sensibilidade
 > paramétrica; solventes físicos (Selexol/Rectisol) e MDEA calibrados vs. literatura;
 > **membranas multi-estágio** (mistura completa, reciclo do permeado, cascata em série);
-> **CLI de casos CH₄–CO₂** (composição variável, propriedades de gás, varredura paramétrica)
-> e **GUI** (PySide6/PyQt5) com editor interativo de composição.
+> **CLI de casos** (composição variável, varredura paramétrica); **GUI** (PySide6/PyQt5);
+> e **composição multicomponente** (CH₄/CO₂/N₂/O₂/H₂/H₂O/H₂S/NH₃/CO/Ar) com propriedades
+> de gás e simulação em lote.
 > Water Scrubbing e MEA validados ponta-a-ponta (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
 ## Instalação
@@ -71,6 +72,28 @@ complementar é atualizada automaticamente. O `sweep` varre a fração de CH₄ 
 tabela pureza, recuperação, remoção de CO₂, perda de metano, consumo de
 solvente/água, energia, diâmetro/altura da coluna, perda de carga, margem de
 inundação e custo — a base dos mapas de desempenho.
+
+### Misturas multicomponente e simulação em lote
+
+A composição não é restrita a CH₄–CO₂: qualquer subconjunto dos gases
+**CH₄, CO₂, N₂, O₂, H₂, H₂O, H₂S, NH₃, CO, Ar** é aceito (adicionar espécies é
+só cadastrar em `Properties/components.py`, sem tocar no solver). A composição
+pode ser dada em **fração molar, mássica ou volumétrica**, ou como **vazão molar
+ou mássica** (`--basis mole|mass|volume|molar_flow|mass_flow`), sempre
+normalizada.
+
+```bash
+biogassim props CH4=0.72 CO2=0.25 N2=0.03 --P 20    # propriedades de qualquer mistura
+biogassim props CH4=0.5 CO2=0.5 --basis mass        # entrada em base mássica
+biogassim batch feeds.csv --tech water --out results.csv   # centenas/milhares de feeds
+```
+
+O `batch` lê um CSV (uma linha por alimentação; colunas = espécies, + opcionais
+`name`, `T_K`, `P_bar`, `basis`, `technology`) e calcula as propriedades de cada
+mistura; com `--tech`, roda também o upgrading sobre a subcomposição CH₄/CO₂ e
+reporta a fração inerte. **Nota:** o solver de absorção modela hoje a remoção de
+CO₂ (CH₄/CO₂); N₂/O₂/H₂/Ar/H₂S entram como diluentes (aparecem nas propriedades,
+não no balanço da coluna). Absorção multicomponente (ex.: H₂S) = roadmap.
 
 ### Interface gráfica (GUI)
 
@@ -210,7 +233,7 @@ Validação sistemática contra Aspen Plus/DWSIM é meta futura (ROADMAP).
 
 ```bash
 pip install -e ".[dev,excel,gui]"   # pytest, pytest-cov, ruff, openpyxl, PySide6
-pytest -q                       # roda os 133 testes (GUI é pulada sem Qt instalado)
+pytest -q                       # roda os 149 testes (GUI é pulada sem Qt instalado)
 pytest --cov=biogassim          # com cobertura
 ruff check biogassim tests      # lint
 ruff check --fix biogassim tests   # corrige o que for auto-corrigível

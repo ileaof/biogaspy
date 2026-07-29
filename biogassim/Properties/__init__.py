@@ -2,11 +2,16 @@
 from .Amines import amine_cp, amine_density, amine_viscosity, heat_of_absorption
 from .components import Component, ShomateCp, all_components, get
 from .GasProperties import (
+    DEFAULT_GASES,
+    GasMixture,
     GasProperties,
     compressibility,
     mixture_molar_mass,
     mixture_properties,
+    mixture_properties_general,
     normalize_composition,
+    normalize_mixture,
+    to_mole_fractions,
 )
 from .Mixtures import cp_ideal_mixture, molar_weight, wilke_viscosity
 from .Water import water_cp, water_density, water_surface_tension, water_viscosity
@@ -18,4 +23,6 @@ __all__ = [
     "amine_density", "amine_viscosity", "amine_cp", "heat_of_absorption",
     "GasProperties", "mixture_properties", "normalize_composition",
     "mixture_molar_mass", "compressibility",
+    "GasMixture", "DEFAULT_GASES", "mixture_properties_general",
+    "to_mole_fractions", "normalize_mixture",
 ]

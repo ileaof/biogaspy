@@ -4,12 +4,14 @@ Uso (tecnologias prontas):
   python -m biogassim.cli run-water | run-mea | run-psa | run-membrane
   python -m biogassim.cli run-membrane-multi | compare
 
-Uso (Milestone 1 -- casos e composição CH4-CO2):
+Uso (casos, composição e lote):
   biogassim new meu_projeto --tech water
   biogassim set CH4=0.47 CO2=0.53 --case meu_projeto/case.json
   biogassim run meu_projeto/case.json
-  biogassim props CH4=0.60 CO2=0.40 --P 20
+  biogassim props CH4=0.72 CO2=0.25 N2=0.03 --P 20   # mistura multicomponente
+  biogassim props CH4=0.5 CO2=0.5 --basis mass       # base massica
   biogassim sweep CH4=0.20:0.95:0.05 --tech water --out sweep.csv
+  biogassim batch feeds.csv --tech water --out results.csv
   biogassim export results.xlsx --case meu_projeto/case.json
   biogassim report --case meu_projeto/case.json
 """
@@ -134,14 +136,13 @@ def _cmd_set(args):
 
 
 def _cmd_props(args):
-    from .Properties import mixture_properties
-    kv = _parse_assignments(args.assignments)
-    ch4 = float(kv["CH4"]) if "CH4" in kv else None
-    co2 = float(kv["CO2"]) if "CO2" in kv else None
-    p = mixture_properties(ch4=ch4, co2=co2, T=args.T, P=args.P * 1e5)
-    _print({
-        "x_CH4": p.x_CH4, "x_CO2": p.x_CO2,
-        "T_K": p.T, "P_bar": p.P / 1e5,
+    from .Properties import mixture_properties_general
+    comp = {k: float(v) for k, v in _parse_assignments(args.assignments).items()}
+    p = mixture_properties_general(comp, T=args.T, P=args.P * 1e5, basis=args.basis)
+    out = {"basis": args.basis, "T_K": p.T, "P_bar": p.P / 1e5}
+    for s, x in p.fractions.items():
+        out[f"x_{s}"] = round(x, 4)
+    out.update({
         "molar_mass_g_per_mol": round(p.molar_mass_gmol, 4),
         "Z": round(p.Z, 5),
         "density_kg_per_m3": round(p.density, 4),
@@ -152,7 +153,31 @@ def _cmd_props(args):
         "HHV_MJ_per_kg": round(p.HHV_MJ_per_kg, 3),
         "Wobbe_index_MJ_per_Nm3": round(p.wobbe_index_MJ_per_Nm3, 3),
         "specific_gravity": round(p.specific_gravity, 4),
-    }, "PROPRIEDADES DA MISTURA CH4-CO2")
+    })
+    _print(out, "PROPRIEDADES DA MISTURA")
+
+
+def _cmd_batch(args):
+    from .batch import run_batch
+    from .Export import export_csv, export_json
+    rows = run_batch(args.feeds, T=args.T, P_bar=args.P, basis=args.basis,
+                     technology=args.tech, flow=args.flow)
+    ok = sum(1 for r in rows if r.get("status") == "ok")
+    print("=" * 70)
+    print(f"BATCH -- {ok}/{len(rows)} composições avaliadas ({args.feeds})")
+    print("=" * 70)
+    for r in rows[:20]:
+        print(f"  {str(r['name']):<16} MM={r.get('MM_g_per_mol', '-')!s:>8} g/mol "
+              f"Z={r.get('Z', '-')!s:>7} LHV={r.get('LHV_MJ_per_Nm3', '-')!s:>7} MJ/Nm³ "
+              f"Wobbe={r.get('wobbe_MJ_per_Nm3', '-')!s:>7} [{r.get('status')}]")
+    if len(rows) > 20:
+        print(f"  ... (+{len(rows) - 20} linhas)")
+    if args.out:
+        if args.out.endswith(".json"):
+            export_json({"batch": rows}, args.out)
+        else:
+            export_csv(rows, args.out)
+        print(f"Exportado: {args.out}")
 
 
 def _cmd_sweep(args):
@@ -287,11 +312,26 @@ def build_parser() -> argparse.ArgumentParser:
     ps.add_argument("--case", default="case.json", help="Arquivo do caso (JSON)")
     ps.set_defaults(func=_cmd_set)
 
-    pp = sub.add_parser("props", help="Propriedades da mistura CH4-CO2")
-    pp.add_argument("assignments", nargs="+", help="Ex.: CH4=0.47 CO2=0.53")
+    pp = sub.add_parser("props", help="Propriedades de uma mistura (qualquer gás)")
+    pp.add_argument("assignments", nargs="+",
+                    help="Espécies=valor, ex.: CH4=0.72 CO2=0.25 N2=0.03")
     pp.add_argument("--T", type=float, default=298.15, help="Temperatura (K)")
     pp.add_argument("--P", type=float, default=1.01325, help="Pressão (bar)")
+    pp.add_argument("--basis", default="mole",
+                    help="Base: mole/mass/volume/molar_flow/mass_flow")
     pp.set_defaults(func=_cmd_props)
+
+    pb = sub.add_parser("batch", help="Avaliar muitas composições de um CSV (feeds.csv)")
+    pb.add_argument("feeds", help="CSV com colunas de espécies (CH4, CO2, N2, ...)")
+    pb.add_argument("--out", default=None, help="Exportar resultados (.csv ou .json)")
+    pb.add_argument("--tech", default=None, choices=["water", "mea"],
+                    help="Rodar upgrading sobre a subcomposição CH4/CO2")
+    pb.add_argument("--T", type=float, default=298.15, help="Temperatura (K)")
+    pb.add_argument("--P", type=float, default=1.01325, help="Pressão (bar)")
+    pb.add_argument("--basis", default="mole",
+                    help="Base: mole/mass/volume/molar_flow/mass_flow")
+    pb.add_argument("--flow", type=float, default=100.0, help="Vazão p/ upgrading (mol/s)")
+    pb.set_defaults(func=_cmd_batch)
 
     psw = sub.add_parser("sweep", help="Varredura de composição (ex.: CH4=0.20:0.95:0.05)")
     psw.add_argument("spec", help="CH4=inicio:fim:passo")

@@ -7,6 +7,17 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Adicionado
+- **Composição multicomponente** (`Properties/GasProperties.py`): a alimentação
+  não é mais restrita a CH₄–CO₂. Suporta qualquer subconjunto de CH₄, CO₂, N₂,
+  O₂, H₂, H₂O, H₂S, NH₃, CO, Ar (H₂/NH₃/CO/Ar adicionados ao banco de
+  componentes). Entrada em fração molar/mássica/volumétrica ou vazão molar/
+  mássica (`to_mole_fractions`), com normalização e validação. `mixture_
+  properties_general`/`GasMixture` dão MM, Z, densidade, LHV/HHV, Wobbe e SG de
+  qualquer mistura — validados vs. literatura (ar: MM 28.97, Z≈1; H₂: ~120 MJ/kg).
+- **Simulação em lote** (`biogassim/batch.py` + CLI `batch`): lê um CSV de
+  composições e avalia todas de uma vez (propriedades por feed; com `--tech`,
+  roda o upgrading sobre a subcomposição CH₄/CO₂ e reporta a fração inerte).
+- CLI `props` generalizado para qualquer mistura, com `--basis`.
 - **GUI (Milestone 1)** (`biogassim/gui/`): interface gráfica desktop com shim de
   binding (PySide6 preferido, PyQt5 alternativo). Editor interativo de composição
   (spin/slider/presets, normalização e fração complementar em tempo real, leituras
