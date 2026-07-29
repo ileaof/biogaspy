@@ -93,8 +93,13 @@ a especificação completa (nível Aspen/DWSIM).
 
 ## Interface e exportação
 
-- [ ] **GUI PySide6/PyQt6**: formulários, assistente de casos, visualização em
-      tempo real, barras de progresso, comparação lado a lado.
+- [x] **GUI (Milestone 1)**: janela desktop (shim PySide6/PyQt5) com editor
+      interativo de composição CH₄–CO₂ (spin/slider/presets, normalização e
+      fração complementar em tempo real, leituras de propriedades), painel
+      operacional, solver + monitor de convergência, dashboard e gráfico de
+      desempenho vs. composição. `biogassim gui`; `biogassim/gui/`;
+      `tests/test_gui.py` (5, headless). *Futuro:* execução assíncrona
+      (barras de progresso), comparação lado a lado, perfis de coluna ao vivo.
 - [ ] **Export PDF** (reportlab), **Tecplot** (.plt), **VTK** (malha estruturada
       da coluna para visualização 3D).
 - [ ] **Sphinx**: manual do usuário, do desenvolvedor, API reference.

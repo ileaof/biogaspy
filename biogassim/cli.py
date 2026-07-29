@@ -210,6 +210,14 @@ def _cmd_export(args):
     print(f"Exportado: {args.output}  (caso '{case.name}', {case.technology})")
 
 
+def _cmd_gui(args):
+    try:
+        from .gui.app import main as gui_main
+    except ImportError as exc:
+        raise SystemExit(f"GUI indisponível: {exc}") from exc
+    raise SystemExit(gui_main())
+
+
 def _cmd_report(args):
     from . import cases
     from .Export import export_html
@@ -302,6 +310,9 @@ def build_parser() -> argparse.ArgumentParser:
     prep.add_argument("--case", default="case.json", help="Arquivo do caso (JSON)")
     prep.add_argument("--out", default=None, help="Arquivo HTML de saída")
     prep.set_defaults(func=_cmd_report)
+
+    pg = sub.add_parser("gui", help="Abrir a interface gráfica (PySide6/PyQt5)")
+    pg.set_defaults(func=_cmd_gui)
     return p
 
 

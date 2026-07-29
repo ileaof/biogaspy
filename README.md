@@ -9,9 +9,9 @@ purificação para produção de biometano a partir de biogás **47% CH₄ / 53%
 > de coluna (flooding de Eckert, perda de carga de Stichlmair); estudos de sensibilidade
 > paramétrica; solventes físicos (Selexol/Rectisol) e MDEA calibrados vs. literatura;
 > **membranas multi-estágio** (mistura completa, reciclo do permeado, cascata em série);
-> **CLI de casos CH₄–CO₂** (composição variável, propriedades de gás, varredura paramétrica).
-> Water Scrubbing e MEA validados ponta-a-ponta. GUI = próximo passo (ver
-> [`docs/ROADMAP.md`](docs/ROADMAP.md)).
+> **CLI de casos CH₄–CO₂** (composição variável, propriedades de gás, varredura paramétrica)
+> e **GUI** (PySide6/PyQt5) com editor interativo de composição.
+> Water Scrubbing e MEA validados ponta-a-ponta (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
 ## Instalação
 
@@ -54,6 +54,20 @@ complementar é atualizada automaticamente. O `sweep` varre a fração de CH₄ 
 tabela pureza, recuperação, remoção de CO₂, perda de metano, consumo de
 solvente/água, energia, diâmetro/altura da coluna, perda de carga, margem de
 inundação e custo — a base dos mapas de desempenho.
+
+### Interface gráfica (GUI)
+
+```bash
+pip install -e ".[gui]"     # instala PySide6 (ou tenha PyQt5)
+biogassim gui               # abre a janela principal
+```
+
+A GUI (PySide6 preferido, PyQt5 alternativo — via shim) traz o **editor
+interativo de composição** (spin + slider + presets, normalização e fração
+complementar em tempo real, com leitura contínua de MM, Z, densidade, LHV/HHV,
+Índice de Wobbe e densidade relativa), painel de condições operacionais,
+controles do solver com monitor de convergência, dashboard de resultados e um
+gráfico de desempenho vs. composição.
 
 ## Uso como scripts
 
@@ -130,8 +144,8 @@ Validação sistemática contra Aspen Plus/DWSIM é meta futura (ROADMAP).
 ## Desenvolvimento
 
 ```bash
-pip install -e ".[dev,excel]"   # instala pytest, pytest-cov, ruff, openpyxl
-pytest -q                       # roda os 91 testes
+pip install -e ".[dev,excel,gui]"   # pytest, pytest-cov, ruff, openpyxl, PySide6
+pytest -q                       # roda os 133 testes (GUI é pulada sem Qt instalado)
 pytest --cov=biogassim          # com cobertura
 ruff check biogassim tests      # lint
 ruff check --fix biogassim tests   # corrige o que for auto-corrigível

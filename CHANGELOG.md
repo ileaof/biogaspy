@@ -7,6 +7,13 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Adicionado
+- **GUI (Milestone 1)** (`biogassim/gui/`): interface gráfica desktop com shim de
+  binding (PySide6 preferido, PyQt5 alternativo). Editor interativo de composição
+  (spin/slider/presets, normalização e fração complementar em tempo real, leituras
+  contínuas de propriedades), painel operacional, controles do solver + monitor de
+  convergência, dashboard de resultados e gráfico de desempenho vs. composição.
+  Comando `biogassim gui`; extra `pip install -e ".[gui]"`. Smoke tests headless
+  (offscreen) em `tests/test_gui.py` (5).
 - **Milestone 1 — CH₄–CO₂**: motor de composição e propriedades de gás
   (`Properties/GasProperties.py`): normalização/validação da composição binária
   e cálculo de massa molar, Z (Peng-Robinson), densidade real e normal, LHV/HHV
