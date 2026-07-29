@@ -7,14 +7,14 @@ GMRES sobre sistemas esparsos) com controle automático de convergência. O solv
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional, Tuple
 
 import numpy as np
-from scipy import sparse   # noqa: F401  (exposto para reuso)
-from scipy.sparse.linalg import gmres, LinearOperator
+from scipy import sparse  # noqa: F401  (exposto para reuso)
+from scipy.sparse.linalg import LinearOperator, gmres
 
-from .convergence import ConvergenceReport, residual_norm, relative_tolerance
+from .convergence import ConvergenceReport, relative_tolerance, residual_norm
 
 
 @dataclass
@@ -30,7 +30,7 @@ class SolveResult:
 def newton_raphson(
     residual: Callable[[np.ndarray], np.ndarray],
     x0: np.ndarray,
-    jacobian: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+    jacobian: Callable[[np.ndarray], np.ndarray] | None = None,
     max_iter: int = 80,
     tol: float = 1.0e-9,
     damp: float = 1.0,
@@ -42,8 +42,6 @@ def newton_raphson(
     se ausente, usa-se diferenças finitas por coluna (custo N+1 avaliações).
     """
     x = np.array(x0, dtype=float)
-    n = x.size
-    ident = np.eye(n)
     for k in range(1, max_iter + 1):
         F = np.asarray(residual(x), dtype=float)
         if residual_norm(F) <= tol:
@@ -70,7 +68,7 @@ def newton_raphson(
 def broyden(
     residual: Callable[[np.ndarray], np.ndarray],
     x0: np.ndarray,
-    J0: Optional[np.ndarray] = None,
+    J0: np.ndarray | None = None,
     max_iter: int = 120,
     tol: float = 1.0e-8,
 ) -> SolveResult:
@@ -81,7 +79,6 @@ def broyden(
     """
     x = np.array(x0, dtype=float)
     F = np.asarray(residual(x), dtype=float)
-    n = x.size
     if J0 is not None:
         J = np.array(J0, dtype=float)
     else:
@@ -114,7 +111,7 @@ def broyden(
 def solve_sparse(
     matvec: Callable[[np.ndarray], np.ndarray],
     b: np.ndarray,
-    n: Optional[int] = None,
+    n: int | None = None,
     tol: float = 1.0e-8,
     max_iter: int = 500,
 ) -> np.ndarray:
@@ -132,7 +129,7 @@ def solve_sparse(
 def _numerical_jacobian(
     residual: Callable[[np.ndarray], np.ndarray],
     x: np.ndarray,
-    F0: Optional[np.ndarray] = None,
+    F0: np.ndarray | None = None,
     eps: float = 1.0e-6,
 ) -> np.ndarray:
     x = np.asarray(x, dtype=float)

@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from .Packing import Packing
 from ..Core.constants import G_STD
+from .Packing import Packing
 
 _MU_G_DEFAULT = 1.5e-5   # Pa·s, viscosidade de gás típica (se não informada)
 
@@ -67,7 +67,7 @@ def wet_pressure_drop(rho_l: float, rho_g: float, u_g: float, u_l: float,
     h_L = _liquid_holdup(rho_l, u_l, packing) if u_l > 0.0 else 0.0
     eps_eff = eps - h_L
     if eps_eff <= 1e-4:
-        return float(1e6)              # flooding: holdup saturou o vazio
+        return 1e6              # flooding: holdup saturou o vazio
     return float(dp_dry * (eps / eps_eff) ** 4.65)
 
 

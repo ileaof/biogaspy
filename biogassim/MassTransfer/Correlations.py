@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..Core.constants import R_J_MOL_K
-
 
 def reynolds(rho: float, u: float, d: float, mu: float) -> float:
     """Re = ρ u d / μ."""

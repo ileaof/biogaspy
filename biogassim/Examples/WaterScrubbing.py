@@ -5,23 +5,21 @@ biometano, recuperação de metano, dimensionamento, energia e gera gráficos.
 """
 from __future__ import annotations
 
-from typing import Dict
-
 import numpy as np
 
-from ..UnitOperations import Stream, Absorber, AbsorberSpec
-from ..Solvents import WaterSolvent
-from ..UnitOperations.Compressor import compress
+from ..Export import export_csv, export_json, export_profile_csv
 from ..Optimization import EnergySummary, compression_energy
-from ..Export import export_json, export_csv, export_profile_csv
 from ..Reporting import plot_column_profiles, plot_equilibrium_curve
+from ..Solvents import WaterSolvent
+from ..UnitOperations import Absorber, AbsorberSpec, Stream
+from ..UnitOperations.Compressor import compress
 from .common import biogas_stream, metrics_from_absorber
 
 OUTDIR = "examples_output"
 
 
 def run_case(P_bar: float = 20.0, L_over_V: float = 100.0, N_stages: int = 12,
-             height: float = 15.0, flow: float = 100.0, save: bool = True) -> Dict:
+             height: float = 15.0, flow: float = 100.0, save: bool = True) -> dict:
     species = ["CH4", "CO2", "H2O"]
     P = P_bar * 1e5
     # compressão do biogás da pressão atmosférica até P

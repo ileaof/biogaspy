@@ -1,12 +1,10 @@
 """Exemplo: Separação por membrana -- 1 estágio solução-difusão."""
 from __future__ import annotations
 
-from typing import Dict
-
 import numpy as np
 
-from ..Membranes import single_stage
 from ..Export import export_json
+from ..Membranes import single_stage
 from .common import BIOGAS
 
 OUTDIR = "examples_output"
@@ -14,7 +12,7 @@ OUTDIR = "examples_output"
 
 def run_case(material: str = "CelluloseAcetate", P_feed_bar: float = 10.0,
              P_perm_bar: float = 0.2, stage_cut: float = 0.5,
-             flow: float = 100.0, save: bool = True) -> Dict:
+             flow: float = 100.0, save: bool = True) -> dict:
     species = ["CH4", "CO2"]
     z = np.array([BIOGAS["CH4"], BIOGAS["CO2"]])
     r = single_stage(material, species, z, flow, 308.15,

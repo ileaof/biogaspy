@@ -1,12 +1,12 @@
 """Pacote Solvents: interface base e solventes físicos/químicos."""
 from .base import Solvent
-from .Water import WaterSolvent
-from .MEA import MEASolvent
-from .KentEisenberg import KentEisenberg
 from .DEA import DEASolvent
+from .KentEisenberg import KentEisenberg
 from .MDEA import MDEASolvent
-from .Selexol import SelexolSolvent
+from .MEA import MEASolvent
 from .Rectisol import RectisolSolvent
+from .Selexol import SelexolSolvent
+from .Water import WaterSolvent
 
 __all__ = [
     "Solvent",

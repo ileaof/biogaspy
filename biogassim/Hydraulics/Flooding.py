@@ -24,8 +24,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from .Packing import Packing
 from ..Core.constants import G_STD
+from .Packing import Packing
 
 MU_WATER = 1.0e-3          # Pa·s, água a 20 °C (referência da correção de μ)
 

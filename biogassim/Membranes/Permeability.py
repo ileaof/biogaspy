@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
 
 # Permeabilidades em Barrer (1 Barrer = 3.35e-16 mol/(m·s·Pa))
 BARRER = 3.35e-16
@@ -11,7 +10,7 @@ BARRER = 3.35e-16
 @dataclass
 class MembraneMaterial:
     name: str
-    permeability: Dict[str, float]   # Barrer
+    permeability: dict[str, float]   # Barrer
     selectivity_notes: str = ""
 
     def perm_si(self, species: str) -> float:
@@ -19,7 +18,7 @@ class MembraneMaterial:
         return float(self.permeability.get(species, 1.0) * BARRER)
 
 
-MEMBRANES: Dict[str, MembraneMaterial] = {
+MEMBRANES: dict[str, MembraneMaterial] = {
     "CelluloseAcetate": MembraneMaterial(
         "Cellulose Acetate", {"CO2": 6.0, "CH4": 0.2, "N2": 0.3},
         "α(CO2/CH4) ~ 30"),

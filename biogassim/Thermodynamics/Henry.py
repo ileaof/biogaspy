@@ -10,11 +10,10 @@ modelos de equilíbrio gás-líquido fornece-se ``K_value(T,P) = H/P`` tal que
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
 
 import numpy as np
 
-from ..Core.constants import R_J_MOL_K, ATM_TO_PA
+from ..Core.constants import ATM_TO_PA, R_J_MOL_K
 
 
 @dataclass
@@ -61,7 +60,7 @@ _H_N2_WATER = from_solubility_mol_per_L_atm(0.0006)
 # H2S em água: 0.10 mol/(L·atm)
 _H_H2S_WATER = from_solubility_mol_per_L_atm(0.10)
 
-HENRY_WATER: Dict[str, HenryParams] = {
+HENRY_WATER: dict[str, HenryParams] = {
     "CO2": HenryParams(_H_CO2_WATER, 298.15, 20000.0),
     "CH4": HenryParams(_H_CH4_WATER, 298.15, 14000.0),
     "N2":  HenryParams(_H_N2_WATER, 298.15, 10000.0),
@@ -72,7 +71,7 @@ HENRY_WATER: Dict[str, HenryParams] = {
 class HenryLaw:
     """Modelo de equilíbrio gás-líquido via lei de Henry."""
 
-    def __init__(self, params: Dict[str, HenryParams]):
+    def __init__(self, params: dict[str, HenryParams]):
         self.params = dict(params)
 
     def H(self, species: str, T: float) -> float:

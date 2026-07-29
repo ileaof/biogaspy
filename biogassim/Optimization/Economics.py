@@ -23,7 +23,7 @@ class Economics:
     def from_process(cls, total_kw: float, biometane_nm3h: float,
                      water_m3h: float = 0.0, solvent_kg_h: float = 0.0,
                      thermal_kw: float = 0.0, capex_usd: float = 0.0,
-                     co2_avoided_kg_h: float = 0.0) -> "Economics":
+                     co2_avoided_kg_h: float = 0.0) -> Economics:
         hours = 8000.0
         opex_elec = total_kw * hours * ELEC_PRICE
         opex_therm = thermal_kw * hours * THERMAL_PRICE

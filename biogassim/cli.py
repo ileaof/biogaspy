@@ -10,7 +10,6 @@ Uso:
 from __future__ import annotations
 
 import argparse
-import sys
 
 
 def _print(m, title):

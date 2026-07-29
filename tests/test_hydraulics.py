@@ -1,11 +1,15 @@
 """Testes de hidráulica de coluna recheiada (flooding, perda de carga, diâmetro)."""
-import numpy as np
 import pytest
 
-from biogassim.Hydraulics import (PACKINGS, get_packing,
-                                 flooding_velocity, operating_velocity,
-                                 column_diameter, dry_pressure_drop, wet_pressure_drop)
-
+from biogassim.Hydraulics import (
+    PACKINGS,
+    column_diameter,
+    dry_pressure_drop,
+    flooding_velocity,
+    get_packing,
+    operating_velocity,
+    wet_pressure_drop,
+)
 
 # ar/água a 1 atm, 20 °C -- ancora de flooding para anéis Pall (Kister)
 RHO_G_AIR, RHO_L_WATER, MU_L_WATER = 1.2, 1000.0, 1.0e-3

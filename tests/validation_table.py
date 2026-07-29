@@ -17,10 +17,9 @@ from pathlib import Path
 import numpy as np
 
 from biogassim.Properties.components import get
-from biogassim.Thermodynamics.PengRobinson import PengRobinson
-from biogassim.Thermodynamics.Henry import henry_water
 from biogassim.Solvents.KentEisenberg import KentEisenberg
-
+from biogassim.Thermodynamics.Henry import henry_water
+from biogassim.Thermodynamics.PengRobinson import PengRobinson
 
 # Aronu et al. (2011) -- 30 wt% MEA, 40 C: (alpha, p_CO2 kPa)
 ARONU_40C = [
@@ -74,9 +73,9 @@ def _rows() -> list[dict]:
 
     # --- Balanco de energia (adiabatico) MEA: ΔT observado vs estimado ---
     try:
-        from biogassim.UnitOperations import Stream, Absorber, AbsorberSpec
-        from biogassim.Solvents import MEASolvent
         from biogassim.Properties.components import get as gcomp
+        from biogassim.Solvents import MEASolvent
+        from biogassim.UnitOperations import Absorber, AbsorberSpec, Stream
         species = ["CH4", "CO2", "H2O", "MEA"]
         gas = Stream.make(species, [0.47, 0.53, 0.0, 0.0], 100.0, 313.15, 2e5, "vapor")
         mm_mea, mm_w, w = gcomp("MEA").MM, gcomp("H2O").MM, 0.30

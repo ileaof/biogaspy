@@ -5,16 +5,14 @@ Inclui regeneração (stripper) e balanço energético (calor de reboiler).
 """
 from __future__ import annotations
 
-from typing import Dict
-
 import numpy as np
 
-from ..UnitOperations import Stream, Absorber, AbsorberSpec
-from ..Solvents import MEASolvent
-from ..UnitOperations.Compressor import compress
+from ..Export import export_csv, export_json, export_profile_csv
 from ..Optimization import EnergySummary, compression_energy, regeneration_energy
-from ..Export import export_json, export_csv, export_profile_csv
 from ..Reporting import plot_column_profiles
+from ..Solvents import MEASolvent
+from ..UnitOperations import Absorber, AbsorberSpec, Stream
+from ..UnitOperations.Compressor import compress
 from .common import biogas_stream, metrics_from_absorber
 
 OUTDIR = "examples_output"
@@ -34,7 +32,7 @@ def lean_solvent(species, flow: float, T=313.15, P=2e5, w_mea=0.30):
 
 
 def run_case(P_bar: float = 2.0, L_over_V: float = 20.0, N_stages: int = 8,
-             height: float = 12.0, flow: float = 100.0, save: bool = True) -> Dict:
+             height: float = 12.0, flow: float = 100.0, save: bool = True) -> dict:
     species = ["CH4", "CO2", "H2O", "MEA"]
     P = P_bar * 1e5
     gas_in = biogas_stream(flow, species=species, T=313.15, P=1.01325e5)

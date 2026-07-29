@@ -12,13 +12,12 @@ Todas as espécies fora de ``absorbed_species`` são tratadas como não-volátei
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List
 
 
 class Solvent(ABC):
     name: str = "solvent"
     amine_name: str = ""            # espécie amina (para cálculo de loading); "" se física
-    absorbed_species: List[str] = []
+    absorbed_species: list[str] = []
 
     @abstractmethod
     def K_value(self, species: str, T: float, P: float, x, loading: float = 0.0) -> float:

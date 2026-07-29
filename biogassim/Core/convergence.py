@@ -1,8 +1,8 @@
 """Critérios e aceleradores de convergência para o solver iterativo."""
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional, Tuple
 
 import numpy as np
 
@@ -44,7 +44,7 @@ def wegstein(
     tol: float = 1.0e-8,
     relax_min: float = -5.0,
     relax_max: float = 5.0,
-) -> Tuple[np.ndarray, ConvergenceReport]:
+) -> tuple[np.ndarray, ConvergenceReport]:
     """Aceleração de Wegstein para ponto fixo ``x = g(x)``.
 
     Útil para problemas de reciclo / especificação de fluxo onde a iteração

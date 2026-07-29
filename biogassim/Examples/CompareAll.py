@@ -6,23 +6,21 @@ eficiência global) em CSV/JSON/HTML + gráfico de barras.
 """
 from __future__ import annotations
 
-from typing import Dict, List
-
-from ..Export import export_json, export_csv, export_html, export_excel
-from ..Reporting import plot_comparison
+from ..Export import export_csv, export_excel, export_html, export_json
 from ..Optimization import Economics
-from . import WaterScrubbing, MEA, PSA, Membrane
+from ..Reporting import plot_comparison
+from . import MEA, PSA, Membrane, WaterScrubbing
 from .common import BIOGAS
 
 OUTDIR = "examples_output"
 
 
-def _efficiency(m: Dict) -> float:
+def _efficiency(m: dict) -> float:
     """Eficiência global (%) = (CH4 recuperado no biometano / CH4 no biogás) * pureza."""
     return round((m.get("recovery_CH4", 0) / 100.0) * (m.get("purity_CH4", 0) / 100.0) * 100, 2)
 
 
-def _economics(m: Dict, total_kw: float, flow: float) -> Dict:
+def _economics(m: dict, total_kw: float, flow: float) -> dict:
     bio_nm3h = flow * 0.0224 * 3600 * (m.get("recovery_CH4", 90) / 100.0)
     co2_kg_h = flow * BIOGAS["CO2"] * (m.get("CO2_removal", 0) / 100.0) * 0.044 * 3600
     econ = Economics.from_process(total_kw=total_kw, biometane_nm3h=bio_nm3h,
@@ -34,7 +32,7 @@ def _economics(m: Dict, total_kw: float, flow: float) -> Dict:
             "co2_avoided_t_per_yr": round(econ.co2_avoided_t_per_yr, 1)}
 
 
-def run_all(flow: float = 100.0, save: bool = True) -> List[Dict]:
+def run_all(flow: float = 100.0, save: bool = True) -> list[dict]:
     rows = []
     # Water
     w = WaterScrubbing.run_case(save=False)
@@ -69,9 +67,6 @@ def run_all(flow: float = 100.0, save: bool = True) -> List[Dict]:
     rows.append(_select(mmb, is_stub=True))
 
     if save:
-        cols = ["technology", "purity_CH4", "recovery_CH4", "CO2_removal",
-                "total_kW", "specific_kWh_per_Nm3", "specific_cost_usd_per_Nm3",
-                "co2_avoided_t_per_yr", "global_efficiency_pct", "stub"]
         export_csv(rows, f"{OUTDIR}/comparison.csv")
         export_json({"comparison": rows}, f"{OUTDIR}/comparison.json")
         export_html(rows, f"{OUTDIR}/comparison.html", title="BioGasSim -- Comparação")
@@ -90,7 +85,7 @@ def run_all(flow: float = 100.0, save: bool = True) -> List[Dict]:
     return rows
 
 
-def _select(m: Dict, is_stub: bool = False) -> Dict:
+def _select(m: dict, is_stub: bool = False) -> dict:
     return {
         "technology": m.get("technology", "?"),
         "purity_CH4": m.get("purity_CH4"),

@@ -5,11 +5,10 @@ Usa backend ``Agg`` para funcionar sem display. Todas as funções salvam PNG.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional
-
-import numpy as np
 
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
@@ -20,7 +19,7 @@ def _ensure_dir(path) -> Path:
     return p
 
 
-def plot_column_profiles(result, species_names: List[str], path) -> None:
+def plot_column_profiles(result, species_names: list[str], path) -> None:
     """Perfis de composição (vapor e líquido) e temperatura ao longo da coluna."""
     p = _ensure_dir(path)
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
@@ -66,7 +65,7 @@ def plot_equilibrium_curve(K_co2, path, label: str = "CO2") -> None:
     plt.close(fig)
 
 
-def plot_comparison(table: List[Dict], x_key: str, y_keys: List[str],
+def plot_comparison(table: list[dict], x_key: str, y_keys: list[str],
                     path, title: str = "Comparação entre tecnologias") -> None:
     """Gráfico de barras comparando tecnologias."""
     p = _ensure_dir(path)
@@ -86,7 +85,7 @@ def plot_comparison(table: List[Dict], x_key: str, y_keys: List[str],
     plt.close(fig)
 
 
-def plot_pxy(T: float, P: float, eos, species: List[str], path) -> None:
+def plot_pxy(T: float, P: float, eos, species: list[str], path) -> None:
     """Diagrama P-x-y esquemático para binário (ilustrativo)."""
     p = _ensure_dir(path)
     if len(species) != 2:

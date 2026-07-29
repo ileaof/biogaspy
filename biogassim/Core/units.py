@@ -7,32 +7,37 @@ carrega valor + unidade; ``to_si`` devolve o valor em unidades SI canônicas.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
 
 from .constants import (
-    ATM_TO_PA, BAR_TO_PA, KPA_TO_PA, PSI_TO_PA, C_TO_K,
-    KWH_TO_J, KCAL_TO_J, MMHG_TO_PA,
+    ATM_TO_PA,
+    BAR_TO_PA,
+    C_TO_K,
+    KCAL_TO_J,
+    KPA_TO_PA,
+    KWH_TO_J,
+    MMHG_TO_PA,
+    PSI_TO_PA,
 )
 
 # Unidades de pressão -> Pascal
-_PRESSURE: Dict[str, float] = {
+_PRESSURE: dict[str, float] = {
     "Pa": 1.0, "kPa": KPA_TO_PA, "MPa": 1.0e6, "bar": BAR_TO_PA,
     "atm": ATM_TO_PA, "psi": PSI_TO_PA, "mmHg": MMHG_TO_PA,
 }
 # Unidades de temperatura -> Kelvin
-_TEMPERATURE: Dict[str, float] = {
+_TEMPERATURE: dict[str, float] = {
     "K": 0.0, "C": C_TO_K, "Celsius": C_TO_K,
 }
 # Unidades de energia -> Joule
-_ENERGY: Dict[str, float] = {
+_ENERGY: dict[str, float] = {
     "J": 1.0, "kJ": 1.0e3, "MJ": 1.0e6, "kWh": KWH_TO_J, "kcal": KCAL_TO_J,
 }
 # Unidades de comprimento -> metro
-_LENGTH: Dict[str, float] = {
+_LENGTH: dict[str, float] = {
     "m": 1.0, "cm": 1.0e-2, "mm": 1.0e-3, "in": 0.0254, "ft": 0.3048,
 }
 # Unidades de vazão mássica -> kg/s; mol/s já é SI-base para molar
-_MASSFLOW: Dict[str, float] = {
+_MASSFLOW: dict[str, float] = {
     "kg/s": 1.0, "kg/h": 1.0 / 3600.0, "t/h": 1.0e3 / 3600.0,
 }
 

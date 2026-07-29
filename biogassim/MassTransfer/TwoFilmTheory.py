@@ -1,8 +1,6 @@
 """Teoria dos dois filmes: coeficiente global de transferência gás-líquido."""
 from __future__ import annotations
 
-import numpy as np
-
 
 def overall_Ky(ky: float, kx: float, m: float) -> float:
     """Coeficiente global baseado na fase gás: 1/Ky = 1/ky + m/kx.

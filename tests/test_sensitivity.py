@@ -1,10 +1,9 @@
 """Testes do estudo de sensibilidade paramétrica."""
 import numpy as np
-import pytest
 
-from biogassim.UnitOperations import Stream, AbsorberSpec
-from biogassim.Solvents import WaterSolvent, MEASolvent
-from biogassim.Optimization import sweep, sweep_grid, SweepResult, sweep_LG
+from biogassim.Optimization import SweepResult, sweep, sweep_grid, sweep_LG
+from biogassim.Solvents import MEASolvent, WaterSolvent
+from biogassim.UnitOperations import AbsorberSpec, Stream
 
 
 def _water():

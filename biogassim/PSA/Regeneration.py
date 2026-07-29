@@ -23,7 +23,6 @@ class PSACycle:
         """Estimativa simplificada de pureza via seletividade de equilíbrio."""
         iso = ADSORBENTS[self.adsorbent]
         # razão de adsorção CO2/CH4 em P_high
-        p = sum(y_in.values()) * 0  # não usado
         out = {}
         s = iso["CO2"].q(self.P_high * y_in.get("CO2", 0), self.T) / max(
             iso["CH4"].q(self.P_high * y_in.get("CH4", 0), self.T), 1e-12)

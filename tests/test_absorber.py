@@ -1,9 +1,8 @@
 """Testes do Absorvedor e balanceamento de massa."""
 import numpy as np
-import pytest
 
-from biogassim.UnitOperations import Stream, Absorber, AbsorberSpec
-from biogassim.Solvents import WaterSolvent, MEASolvent
+from biogassim.Solvents import MEASolvent, WaterSolvent
+from biogassim.UnitOperations import Absorber, AbsorberSpec, Stream
 
 
 def _global_mass_balance(r, gas_in, solv_in):

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biogassim"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Simulador científico de upgrading de biogás (remoção de CO2)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -26,7 +26,7 @@ dependencies = [
 
 [project.optional-dependencies]
 excel = ["openpyxl>=3.0"]
-dev = ["pytest>=7.0"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.6"]
 
 [project.scripts]
 biogassim = "biogassim.cli:main"
@@ -34,5 +34,27 @@ biogassim = "biogassim.cli:main"
 [tool.setuptools.packages.find]
 include = ["biogassim*"]
 
+[tool.setuptools.dynamic]
+version = { attr = "biogassim.version.__version__" }
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# F  = pyflakes (dead code, undefined names)   I = import sorting
+# UP = pyupgrade (PEP 585/604 modern syntax)   B = flake8-bugbear (real gotchas)
+# E4/E7/E9/W = pycodestyle essentials
+select = ["E4", "E7", "E9", "W", "F", "I", "UP", "B"]
+# Kept off on purpose: E501 (long lines are fine for dense formulas),
+# E741 (l/I/O read naturally in chemistry — L/V flows, etc.),
+# E731/E702 (short lambdas & semicolon-joined assignments are idiomatic here),
+# B905 (strict= on zip is noise for equal-length arrays).
+ignore = ["E501", "E741", "E731", "E702", "B905"]
+
+[tool.coverage.run]
+source = ["biogassim"]
+omit = ["biogassim/Examples/*", "biogassim/cli.py"]

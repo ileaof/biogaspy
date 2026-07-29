@@ -1,8 +1,8 @@
 """Classes base de unidades: Stream (corrente) e Result."""
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import List, Sequence
 
 import numpy as np
 
@@ -10,7 +10,7 @@ import numpy as np
 @dataclass
 class Stream:
     """Corrente de processo multicomponente."""
-    species: List[str]
+    species: list[str]
     flow: float                       # vazão total (mol/s)
     z: np.ndarray                     # frações molares (mesma ordem de species)
     T: float                          # K
@@ -27,13 +27,13 @@ class Stream:
 
     @classmethod
     def make(cls, species: Sequence[str], z: Sequence[float], flow: float,
-             T: float, P: float, phase: str = "vapor") -> "Stream":
+             T: float, P: float, phase: str = "vapor") -> Stream:
         return cls(list(species), float(flow), np.asarray(z, dtype=float), T, P, phase)
 
     def component_flow(self, i: int) -> float:
         return float(self.flow * self.z[i])
 
-    def copy(self) -> "Stream":
+    def copy(self) -> Stream:
         return Stream(list(self.species), self.flow, self.z.copy(), self.T, self.P, self.phase)
 
 

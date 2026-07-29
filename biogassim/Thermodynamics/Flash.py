@@ -7,7 +7,6 @@ reusando o flash isotérmico.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
 
 import numpy as np
 from scipy.optimize import brentq
@@ -47,7 +46,7 @@ def _solve_rr(z: np.ndarray, K: np.ndarray) -> float:
         return float(brentq(_rachford_rice, 1e-10, 1.0 - 1e-10, args=(z, K)))
 
 
-def _wilson_K(components: List[Component], T: float, P: float) -> np.ndarray:
+def _wilson_K(components: list[Component], T: float, P: float) -> np.ndarray:
     """K inicial de Wilson: K_i = (Pc_i/P) exp(5.373(1+ω_i)(1-Tc_i/T))."""
     Pc = np.array([c.Pc for c in components])
     Tc = np.array([c.Tc for c in components])
@@ -92,7 +91,7 @@ def isothermal_flash(eos: CubicEOS, z: np.ndarray, T: float, P: float,
     return FlashResult(T, P, beta, x / x.sum(), y / y.sum(), K, False, max_iter)
 
 
-def _mixture_enthalpy(eos: CubicEOS, components: List[Component],
+def _mixture_enthalpy(eos: CubicEOS, components: list[Component],
                       T: float, P: float, z: np.ndarray, phase: str) -> float:
     """Entalpia (J/mol) = ideal + departada da EOS (aproximada)."""
     ideal = sum(zi * c.ideal_enthalpy(T) for zi, c in zip(z, components))
@@ -104,7 +103,7 @@ def _mixture_enthalpy(eos: CubicEOS, components: List[Component],
     return float(ideal + dep)
 
 
-def adiabatic_flash(eos: CubicEOS, components: List[Component],
+def adiabatic_flash(eos: CubicEOS, components: list[Component],
                     z: np.ndarray, P: float, T_feed: float,
                     max_iter: int = 60, tol: float = 1e-3) -> FlashResult:
     """Flash adiabático PH: busca T tal que H_produto = H_feed.

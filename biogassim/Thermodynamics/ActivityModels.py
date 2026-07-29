@@ -6,7 +6,6 @@ parâmetros por par). e-UNIQUAC fica como stub documentado para extensão.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
 
 import numpy as np
 

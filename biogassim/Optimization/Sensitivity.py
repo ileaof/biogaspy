@@ -15,8 +15,8 @@ CH4, remoção CO2, carregamento rico (se houver amina), convergência.
 """
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Sequence
 
 import numpy as np
 
@@ -27,14 +27,14 @@ from ..UnitOperations.base import Stream
 @dataclass
 class SweepResult:
     parameter: str
-    values: List[float]
-    purity_CH4: List[float] = field(default_factory=list)      # fração (0-1)
-    recovery_CH4: List[float] = field(default_factory=list)
-    CO2_removal: List[float] = field(default_factory=list)
-    rich_loading: List[float] = field(default_factory=list)
-    converged: List[bool] = field(default_factory=list)
+    values: list[float]
+    purity_CH4: list[float] = field(default_factory=list)      # fração (0-1)
+    recovery_CH4: list[float] = field(default_factory=list)
+    CO2_removal: list[float] = field(default_factory=list)
+    rich_loading: list[float] = field(default_factory=list)
+    converged: list[bool] = field(default_factory=list)
 
-    def to_rows(self) -> List[Dict]:
+    def to_rows(self) -> list[dict]:
         rows = []
         for k, v in enumerate(self.values):
             rows.append({
@@ -125,7 +125,7 @@ def sweep(gas_in: Stream, solvent_in: Stream, solvent,
 
 def sweep_grid(gas_in: Stream, solvent_in: Stream, solvent,
                base_spec: AbsorberSpec, param_x: str, values_x: Sequence[float],
-               param_y: str, values_y: Sequence[float]) -> Dict[str, np.ndarray]:
+               param_y: str, values_y: Sequence[float]) -> dict[str, np.ndarray]:
     """Varredura 2-D (grade) de dois parâmetros -> matrizes para heatmap.
 
     Retorna dicionário com matrizes (len(values_y), len(values_x)) de
@@ -172,9 +172,9 @@ class SensitivityPoint:
 
 
 def sweep_LG(gas_in: Stream, solvent_in_factory: Callable[[float], Stream],
-             solvent, pressures: Optional[List[float]] = None,
-             L_over_V: Optional[List[float]] = None, N_stages: int = 8,
-             height: float = 12.0, T_op: float = 298.15) -> Dict[str, List[SensitivityPoint]]:
+             solvent, pressures: list[float] | None = None,
+             L_over_V: list[float] | None = None, N_stages: int = 8,
+             height: float = 12.0, T_op: float = 298.15) -> dict[str, list[SensitivityPoint]]:
     """Varre L/G e pressão para o absorvedor (API legada)."""
     lvs = L_over_V or [5, 10, 20, 50, 100]
     Ps = pressures or [1e5, 5e5, 10e5, 20e5]

@@ -8,9 +8,6 @@ múltiplos leitos, pressurização, blowdown) é deixado como extensão futura
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
-
-import numpy as np
 
 
 @dataclass
@@ -39,7 +36,7 @@ class Toth:
 
 # Parâmetros de adsorção típicos (CO2 e CH4 em zeólita 13X e carvão ativado).
 # Valores de referência; validar antes de projeto.
-ADSORBENTS: Dict[str, Dict[str, Langmuir]] = {
+ADSORBENTS: dict[str, dict[str, Langmuir]] = {
     "Zeolite_13X": {
         "CO2": Langmuir(4.5, 1.2e-5),
         "CH4": Langmuir(2.5, 3.0e-7),

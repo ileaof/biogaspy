@@ -12,7 +12,6 @@ estruturados). Validar contra dados de fornecedor antes de projeto final.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
 
 
 @dataclass
@@ -29,7 +28,7 @@ class Packing:
     C3: float = 0.4
 
 
-PACKINGS: Dict[str, Packing] = {
+PACKINGS: dict[str, Packing] = {
     # -- random: Raschig / Pall / Intalox (Billet, Kister) --
     "Raschig_25":  Packing("Raschig ring 25mm",  "random", 190.0, 0.73, 500.0, 0.025, 8.0, 4.0, 0.50),
     "Raschig_50":  Packing("Raschig ring 50mm",  "random",  95.0, 0.78, 210.0, 0.050, 8.0, 4.0, 0.50),

@@ -1,8 +1,6 @@
 """Propriedades específicas do CO2 relevantes à solubilidade e captura."""
 from __future__ import annotations
 
-import numpy as np
-
 
 def co2_viscosity(T: float, P: float) -> float:
     """Viscosidade do CO2 gasoso (Pa·s) -- Sutherland simplificado."""

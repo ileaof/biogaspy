@@ -4,12 +4,9 @@ Biogás de referência: 47% CH4 / 53% CO2 a 25 °C e 1 atm.
 """
 from __future__ import annotations
 
-from typing import Dict
-
 import numpy as np
 
 from ..UnitOperations import Stream
-
 
 # Composição base do biogás (frações molares)
 BIOGAS = {"CH4": 0.47, "CO2": 0.53}
@@ -27,9 +24,8 @@ def biogas_stream(flow_mols: float = 100.0, species=None, T=BIOGAS_T, P=BIOGAS_P
     return Stream.make(species, z, flow=flow_mols, T=T, P=P, phase="vapor")
 
 
-def metrics_from_absorber(name: str, result, gas_in: Stream) -> Dict:
+def metrics_from_absorber(name: str, result, gas_in: Stream) -> dict:
     """Extrai métricas padronizadas de um resultado de Absorbedor."""
-    go = result.gas_out
     return {
         "technology": name,
         "purity_CH4": round(result.purity_CH4 * 100, 2),          # %

@@ -1,10 +1,9 @@
 """Smoke tests dos exemplos e unidades auxiliares."""
-import numpy as np
 import pytest
 
-from biogassim.Examples import WaterScrubbing, MEA, PSA, Membrane, CompareAll
-from biogassim.UnitOperations.Compressor import compress
+from biogassim.Examples import MEA, PSA, CompareAll, Membrane, WaterScrubbing
 from biogassim.UnitOperations.base import Stream
+from biogassim.UnitOperations.Compressor import compress
 
 
 def test_water_example_runs(tmp_path, monkeypatch):

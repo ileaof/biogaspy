@@ -8,11 +8,7 @@ arraste na base.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-import numpy as np
-
-from .Absorber import Absorber, AbsorberSpec, AbsorberResult
+from .Absorber import Absorber, AbsorberResult, AbsorberSpec
 from .base import Stream
 
 

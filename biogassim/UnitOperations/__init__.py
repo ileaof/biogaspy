@@ -1,12 +1,12 @@
 """Pacote UnitOperations: correntes, absorvedor, stripper e auxiliares."""
+from .Absorber import Absorber, AbsorberResult, AbsorberSpec
 from .base import Stream, UnitResult
-from .Absorber import Absorber, AbsorberSpec, AbsorberResult
-from .Stripper import strip
-from .Compressor import compress, CompressorResult
-from .Cooler import cooler, CoolerResult
-from .Pump import pump, PumpResult
+from .Compressor import CompressorResult, compress
+from .Cooler import CoolerResult, cooler
+from .Flash import FlashResult, flash_drum
 from .HeatExchanger import heat_exchanger
-from .Flash import flash_drum, FlashResult
+from .Pump import PumpResult, pump
+from .Stripper import strip
 
 __all__ = [
     "Stream", "UnitResult",

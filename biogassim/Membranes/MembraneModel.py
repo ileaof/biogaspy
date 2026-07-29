@@ -8,17 +8,16 @@ extensão futura.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List
 
 import numpy as np
 
-from .Permeability import MEMBRANES, BARRER
+from .Permeability import MEMBRANES
 
 
 @dataclass
 class MembraneResult:
-    permeate: Dict[str, float]    # frações molares no permeado
-    retentate: Dict[str, float]   # frações no retentado (biometano)
+    permeate: dict[str, float]    # frações molares no permeado
+    retentate: dict[str, float]   # frações no retentado (biometano)
     permeate_flow: float          # mol/s
     retentate_flow: float
     purity_CH4: float
@@ -28,7 +27,7 @@ class MembraneResult:
     message: str = ""
 
 
-def single_stage(material: str, feed_species: List[str], z_feed: np.ndarray,
+def single_stage(material: str, feed_species: list[str], z_feed: np.ndarray,
                  feed_flow: float, T: float, P_feed: float, P_permeate: float,
                  area: float = 50.0, stage_cut: float = 0.5) -> MembraneResult:
     """Membrana de 1 estágio (cross-flow, modelo simplificado de mistura).
@@ -40,7 +39,6 @@ def single_stage(material: str, feed_species: List[str], z_feed: np.ndarray,
     z = z / z.sum()
     # pressões parciais
     p_f = z * P_feed
-    p_p = np.zeros_like(z)          # permeado a baixa pressão, aproximação: média
     # permeabilidades em mol/(m·s·Pa)
     perm = np.array([m.perm_si(s) for s in feed_species])
     # fluxo relativo de cada espécie (proporcional a P_i * Δp)

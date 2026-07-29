@@ -11,8 +11,8 @@ A base resolve a cúbica, escolhe Z (líquido/vapor) e calcula φ_i.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Optional, Sequence
 
 import numpy as np
 
@@ -30,7 +30,7 @@ class EOSResult:
 class CubicEOS(ABC):
     """Equação de estado cúbica genérica com regras de mistura quadráticas."""
 
-    def __init__(self, components: Sequence[Component], kij: Optional[np.ndarray] = None):
+    def __init__(self, components: Sequence[Component], kij: np.ndarray | None = None):
         self.components = list(components)
         self.n = len(components)
         if kij is None:

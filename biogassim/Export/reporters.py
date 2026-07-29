@@ -6,12 +6,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
-
-import numpy as np
+from typing import Any
 
 
-def export_excel(tables: Dict[str, List[Dict[str, Any]]], path) -> None:
+def export_excel(tables: dict[str, list[dict[str, Any]]], path) -> None:
     """Cada chave vira uma planilha. Requer openpyxl (opcional)."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -28,7 +26,7 @@ def export_excel(tables: Dict[str, List[Dict[str, Any]]], path) -> None:
             df.to_excel(w, sheet_name=name[:31], index=False)
 
 
-def export_html(table: List[Dict[str, Any]], path, title: str = "BioGasSim Results") -> None:
+def export_html(table: list[dict[str, Any]], path, title: str = "BioGasSim Results") -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     if not table:
@@ -65,8 +63,9 @@ def export_vtk_stub(grid, path) -> None:
     Path(path).write_text("# vtk DataFile Version 3.0\nBioGasSim\nASCII\n\n", encoding="utf-8")
 
 
-def _rows_to_csv(rows: List[Dict[str, Any]]) -> str:
-    import csv, io
+def _rows_to_csv(rows: list[dict[str, Any]]) -> str:
+    import csv
+    import io
     buf = io.StringIO()
     if rows:
         w = csv.DictWriter(buf, fieldnames=list(rows[0].keys()))

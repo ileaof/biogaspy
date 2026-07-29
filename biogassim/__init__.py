@@ -14,9 +14,10 @@ Pacotes:
   Export          -- CSV/JSON/Excel/HTML (+ stubs PDF/Tecplot/VTK)
   Reporting       -- gráficos (matplotlib)
 
-Status desta entrega: Water Scrubbing e MEA totalmente funcionais (testados);
-DEA/MDEA/Selexol/Rectisol/PSA/Membranas como modelos simplificados/stubs
-extensíveis. Ver ``docs/ROADMAP.md``.
+Status (v0.2): Water Scrubbing e MEA validados ponta-a-ponta; DEA/MDEA com
+especiação Kent-Eisenberg rigorosa (MDEA calibrado vs. VLE); Selexol/Rectisol
+(solventes físicos) calibrados vs. literatura; PSA e Membranas como modelos
+simplificados/extensíveis. Ver ``docs/ROADMAP.md`` e ``CHANGELOG.md``.
 """
 from .version import __version__
 

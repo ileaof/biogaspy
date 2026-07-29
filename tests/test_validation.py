@@ -15,12 +15,11 @@ Referências:
   - Aronu et al. (2011). Chem. Eng. Sci. 66, 6393-6406.
 """
 import numpy as np
-import pytest
 
 from biogassim.Properties.components import get
-from biogassim.Thermodynamics.PengRobinson import PengRobinson
-from biogassim.Thermodynamics.Henry import henry_water
 from biogassim.Solvents.KentEisenberg import KentEisenberg
+from biogassim.Thermodynamics.Henry import henry_water
+from biogassim.Thermodynamics.PengRobinson import PengRobinson
 
 
 # ------------------------- EOS (Peng-Robinson) ------------------------- #
@@ -171,9 +170,9 @@ def test_mdea_pco2_monotonic_and_temperature_dependent():
 # ------------------------- Balanço do absorvedor ----------------------- #
 def test_absorber_mass_balance_machine_precision():
     """Balanço global de massa fecha em ~1e-10 (Newton global consistente)."""
-    from biogassim.UnitOperations import Stream, Absorber, AbsorberSpec
-    from biogassim.Solvents import MEASolvent
     from biogassim.Properties.components import get as gcomp
+    from biogassim.Solvents import MEASolvent
+    from biogassim.UnitOperations import Absorber, AbsorberSpec, Stream
     species = ["CH4", "CO2", "H2O", "MEA"]
     gas = Stream.make(species, [0.47, 0.53, 0.0, 0.0], 100.0, 313.15, 2e5, "vapor")
     mm_mea, mm_w, w = gcomp("MEA").MM, gcomp("H2O").MM, 0.30
@@ -191,9 +190,9 @@ def test_absorber_mass_balance_machine_precision():
 def test_absorber_adiabatic_temperature_rise():
     """Modo adiabático: a absorção exotérmica eleva a temperatura e o balanço
     de massa fecha. Verifica a 'temperature bulge' na ponta rica."""
-    from biogassim.UnitOperations import Stream, Absorber, AbsorberSpec
-    from biogassim.Solvents import MEASolvent
     from biogassim.Properties.components import get as gcomp
+    from biogassim.Solvents import MEASolvent
+    from biogassim.UnitOperations import Absorber, AbsorberSpec, Stream
     species = ["CH4", "CO2", "H2O", "MEA"]
     gas = Stream.make(species, [0.47, 0.53, 0.0, 0.0], 100.0, 313.15, 2e5, "vapor")
     mm_mea, mm_w, w = gcomp("MEA").MM, gcomp("H2O").MM, 0.30
@@ -220,9 +219,9 @@ def test_absorber_adiabatic_energy_balance_order():
     """O aumento de temperatura observado é da ordem do esperado:
         ΔT ~ (CO2 absorvido · ΔH_abs) / (L · cp_l)
     Confirma que o balanço de energia está na magnitude correta."""
-    from biogassim.UnitOperations import Stream, Absorber, AbsorberSpec
-    from biogassim.Solvents import MEASolvent
     from biogassim.Properties.components import get as gcomp
+    from biogassim.Solvents import MEASolvent
+    from biogassim.UnitOperations import Absorber, AbsorberSpec, Stream
     species = ["CH4", "CO2", "H2O", "MEA"]
     gas = Stream.make(species, [0.47, 0.53, 0.0, 0.0], 100.0, 313.15, 2e5, "vapor")
     mm_mea, mm_w, w = gcomp("MEA").MM, gcomp("H2O").MM, 0.30
@@ -247,7 +246,7 @@ def test_absorber_adiabatic_energy_balance_order():
 #   Rectisol (metanol): Décultot et al. (2019) p/ CO2 (série T), Leu &
 #     Robinson (1992) p/ H2S, Brunner (1987) p/ CH4.
 # H recuperado como K_value·P e comparado aos valores tabulados em MPa (×1e6).
-from biogassim.Solvents import SelexolSolvent, RectisolSolvent
+from biogassim.Solvents import RectisolSolvent, SelexolSolvent  # noqa: E402
 
 _SELEXOL = SelexolSolvent()
 _RECTISOL = RectisolSolvent()

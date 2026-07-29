@@ -3,10 +3,10 @@ import numpy as np
 import pytest
 
 from biogassim.Properties.components import get
+from biogassim.Thermodynamics.Flash import isothermal_flash
+from biogassim.Thermodynamics.Henry import from_solubility_mol_per_L_atm, henry_water
 from biogassim.Thermodynamics.PengRobinson import PengRobinson
 from biogassim.Thermodynamics.SRK import SRK
-from biogassim.Thermodynamics.Henry import henry_water, from_solubility_mol_per_L_atm
-from biogassim.Thermodynamics.Flash import isothermal_flash
 
 
 def test_pr_Z_vapor_reasonable():

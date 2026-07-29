@@ -8,15 +8,12 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Dict
 
-import numpy as np
-
-from ..UnitOperations import Stream, AbsorberSpec
-from ..Solvents import WaterSolvent, MEASolvent
-from ..Optimization import sweep, sweep_grid
 from ..Export import export_csv, export_json
+from ..Optimization import sweep, sweep_grid
 from ..Reporting import plot_sweep, plot_sweep_grid
+from ..Solvents import MEASolvent, WaterSolvent
+from ..UnitOperations import AbsorberSpec, Stream
 from .common import biogas_stream
 from .MEA import lean_solvent
 
@@ -37,7 +34,7 @@ def _mea_streams(flow=100.0, LV=20.0):
     return species, gas, solv
 
 
-def run_water(save: bool = True) -> Dict:
+def run_water(save: bool = True) -> dict:
     species, gas, solv = _water_streams()
     base = AbsorberSpec(N_stages=12, mode="isothermal", T_op=293.15,
                         pressure=20e5, height=15.0, max_iter=400)
@@ -68,7 +65,7 @@ def run_water(save: bool = True) -> Dict:
     return {"LV": res_LV, "P": res_P, "grid": grid}
 
 
-def run_mea(save: bool = True) -> Dict:
+def run_mea(save: bool = True) -> dict:
     species, gas, solv = _mea_streams(LV=20.0)
     base = AbsorberSpec(N_stages=8, mode="isothermal", T_op=313.15,
                         pressure=2e5, height=12.0, max_iter=400)
@@ -107,7 +104,7 @@ def _print(title, res):
               f"{res.CO2_removal[k]*100:8.2f} {res.rich_loading[k]:6.3f} {res.converged[k]}")
 
 
-def run_all(save: bool = True) -> Dict:
+def run_all(save: bool = True) -> dict:
     os.makedirs(OUTDIR, exist_ok=True)
     w = run_water(save=save)
     m = run_mea(save=save)

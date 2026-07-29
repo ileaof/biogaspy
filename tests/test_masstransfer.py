@@ -2,12 +2,23 @@
 import numpy as np
 import pytest
 
-from biogassim.MassTransfer import (reynolds, schmidt, sherwood_packing,
-                                     onda_rocha_kl, kg_bravo, HTU, NTU_absorber,
-                                     HETP_from_HTU, stage_efficiency,
-                                     fuller_gas, wilke_chang, gas_diffusion_volumes,
-                                     film_flux, enhancement_factor,
-                                     overall_Ky, overall_Kx, interfacial_composition)
+from biogassim.MassTransfer import (
+    HTU,
+    HETP_from_HTU,
+    NTU_absorber,
+    enhancement_factor,
+    film_flux,
+    fuller_gas,
+    gas_diffusion_volumes,
+    interfacial_composition,
+    kg_bravo,
+    onda_rocha_kl,
+    overall_Ky,
+    reynolds,
+    schmidt,
+    stage_efficiency,
+    wilke_chang,
+)
 
 
 def test_reynolds_schmidt_dimensionless():

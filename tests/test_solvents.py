@@ -2,10 +2,15 @@
 import numpy as np
 import pytest
 
-from biogassim.Solvents import (KentEisenberg, DEASolvent, MDEASolvent,
-                                SelexolSolvent, RectisolSolvent)
-from biogassim.UnitOperations import Stream, AbsorberSpec, Absorber
 from biogassim.Properties.components import get
+from biogassim.Solvents import (
+    DEASolvent,
+    KentEisenberg,
+    MDEASolvent,
+    RectisolSolvent,
+    SelexolSolvent,
+)
+from biogassim.UnitOperations import Absorber, AbsorberSpec, Stream
 
 
 def _lean_amine(species, amine, w, flow, T, P):
@@ -91,12 +96,7 @@ def test_dea_column_absorbs_and_balance_closes():
 
 def test_mdea_column_absorbs_weaker_than_mea():
     """MDEA é amina mais fraca: no mesmo L/V e P, remove menos CO2 que MEA."""
-    from biogassim.Solvents import MEASolvent
-    species_m = ["CH4", "CO2", "H2O", "MDEA"]
-    species_e = ["CH4", "CO2", "H2O", "MEA"]
     P = 10e5
-    for sp, am, w in [(species_m, MDEASolvent(), 0.40), (species_e, MEASolvent(), 0.30)]:
-        pass
     # MDEA
     gas_m = _biogas(["CH4", "CO2", "H2O", "MDEA"], 100.0, 313.15, P)
     solv_m = _lean_amine(["CH4", "CO2", "H2O", "MDEA"], "MDEA", 0.40, 25 * 100, 313.15, P)

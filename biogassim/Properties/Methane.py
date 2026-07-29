@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import numpy as np
 
-from .components import get
-
 
 def methane_viscosity(T: float, P: float) -> float:
     """Viscosidade do CH4 gasoso (Pa·s) -- Joss-Stiel/Thodos aproximado.

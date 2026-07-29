@@ -1,8 +1,6 @@
 """Propriedades de soluções de aminas (MEA, DEA, MDEA) -- correlações de Weiland."""
 from __future__ import annotations
 
-import numpy as np
-
 
 def amine_density(name: str, T: float, w_amine: float) -> float:
     """Densidade de solução aquosa de amina (kg/m³).

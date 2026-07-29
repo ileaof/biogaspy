@@ -1,0 +1,11 @@
+# Normalize line endings: text files stored as LF in the repo, checked out
+# native on each platform. Prevents CRLF/LF churn between Windows and CI (Linux).
+* text=auto eol=lf
+
+# Binary assets — never touch.
+*.png binary
+*.xlsx binary
+*.whl binary
+
+# Keep generated example outputs out of language stats / diffs.
+examples_output/** linguist-generated=true

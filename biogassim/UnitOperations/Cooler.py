@@ -1,4 +1,4 @@
 """Módulo Cooler (reexporta implementação de Auxiliaries)."""
-from .Auxiliaries import cooler, CoolerResult
+from .Auxiliaries import CoolerResult, cooler
 
 __all__ = ["cooler", "CoolerResult"]

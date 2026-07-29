@@ -13,29 +13,33 @@ Convenção de estágios: 1 = topo (entra solvente, sai gás purificado), N = ba
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Sequence
 
 import numpy as np
 
-from .base import Stream, UnitResult
-from ..Core.convergence import residual_norm
 from ..Core.solver import newton_raphson
-from ..Hydraulics import (Packing, get_packing, flooding_velocity, operating_velocity,
-                          column_diameter, wet_pressure_drop)
-from ..MassTransfer import (onda_rocha_kl, kg_bravo, overall_Ky, NTU_absorber,
-                            stage_efficiency, fuller_gas, wilke_chang)
-from ..Properties import water_density, water_viscosity
+from ..Hydraulics import (
+    column_diameter,
+    flooding_velocity,
+    get_packing,
+    operating_velocity,
+    wet_pressure_drop,
+)
+from ..MassTransfer import (
+    NTU_absorber,
+    stage_efficiency,
+)
+from .base import Stream, UnitResult
 
 
 @dataclass
 class AbsorberSpec:
     N_stages: int = 10
     packing: str = "Pall_50"
-    diameter: Optional[float] = None       # m (se None, calculado)
-    height: Optional[float] = None        # m
+    diameter: float | None = None       # m (se None, calculado)
+    height: float | None = None        # m
     mode: str = "isothermal"              # "isothermal" | "adiabatic"
-    T_op: Optional[float] = None          # K (modo isotérmico); se None usa T do gás
-    pressure: Optional[float] = None       # Pa (topo); perda de carga aplicada por estágio
+    T_op: float | None = None          # K (modo isotérmico); se None usa T do gás
+    pressure: float | None = None       # Pa (topo); perda de carga aplicada por estágio
     max_iter: int = 120
     tol: float = 1.0e-7
     method: str = "newton"                # "newton" (global, robusto) | "ss" (substituição sucessiva)
@@ -50,8 +54,8 @@ class AbsorberResult(UnitResult):
     y_profile: np.ndarray = field(default_factory=lambda: np.array([]))
     T_profile: np.ndarray = field(default_factory=lambda: np.array([]))
     K_profile: np.ndarray = field(default_factory=lambda: np.array([]))
-    gas_out: Optional[Stream] = None
-    liquid_out: Optional[Stream] = None
+    gas_out: Stream | None = None
+    liquid_out: Stream | None = None
     # dimensionamento / transferência de massa
     diameter: float = 0.0
     height: float = 0.0
@@ -212,11 +216,10 @@ class Absorber:
         (2) resolve o balanço de entalpia por estágio (sistema tridiagonal
         em T) com o calor de absorção liberado -> novo perfil T; repete até
         T convergir (amortecido)."""
-        s = self.spec
         T = T.copy()
         total_iters = 0
         state = self._solve_mesh(T, P)
-        for outer in range(1, max_outer + 1):
+        for _outer in range(1, max_outer + 1):
             total_iters += state["iters"]
             T_new = self._energy_tridiag(state, T)
             dT = float(np.max(np.abs(T_new - T)))
@@ -392,7 +395,7 @@ class Absorber:
         T_gas (biogás) -- ambos conhecidos, vão para o lado direito.
         """
         N = self.N
-        l = state["l"]; v = state["v"]; L = state["L"]; V = state["V"]
+        v = state["v"]; L = state["L"]; V = state["V"]
         y = state["y"]
         cp_v = self._cp_vapor(y, T)
         cp_l = np.array([self.solvent.cp_liquid(T[j]) for j in range(N)])
@@ -431,7 +434,7 @@ class Absorber:
     # ------------------------------------------------------------------ #
     def _finalize(self, res: AbsorberResult, state: dict, s: AbsorberSpec) -> AbsorberResult:
         """Constrói correntes de saída, perfis, métricas e dimensionamento."""
-        l = state["l"]; v = state["v"]; L = state["L"]; V = state["V"]
+        L = state["L"]; V = state["V"]
         x = state["x"]; y = state["y"]; K = state["K"]
         T = state["T"]; P = state["P"]
         # correntes de saída
@@ -506,7 +509,6 @@ class Absorber:
         rho_g = self.gas_in.P * np.mean([self._mm(c) for c in self.species]) / (8.314 * np.mean(T))
         rho_l = self.solvent.density(np.mean(T))
         mu_l = self.solvent.viscosity(np.mean(T))
-        mu_g = 1.5e-5
         L_mass = L.mean() * self.solvent.molar_mass_liquid()
         G_mass = V.mean() * np.mean([self._mm(c) for c in self.species])
         L_over_G = L_mass / max(G_mass, 1e-9)

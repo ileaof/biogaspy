@@ -3,15 +3,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import numpy as np
-
-from .base import Stream, UnitResult
-from .Compressor import CompressorResult
-from ..Core.constants import R_J_MOL_K
 from ..Properties.components import get as get_comp
 from ..Properties.Mixtures import molar_weight
 from ..Thermodynamics.Flash import isothermal_flash
 from ..Thermodynamics.PengRobinson import PengRobinson
+from .base import Stream, UnitResult
 
 
 @dataclass

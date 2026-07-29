@@ -4,7 +4,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
 
@@ -21,14 +21,14 @@ def _to_serializable(obj: Any) -> Any:
     return obj
 
 
-def export_json(data: Dict[str, Any], path) -> None:
+def export_json(data: dict[str, Any], path) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(_to_serializable(data), f, indent=2, ensure_ascii=False)
 
 
-def export_csv(table: List[Dict[str, Any]], path) -> None:
+def export_csv(table: list[dict[str, Any]], path) -> None:
     """``table``: lista de dicionários (linha = caso/estágio)."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -43,7 +43,7 @@ def export_csv(table: List[Dict[str, Any]], path) -> None:
             w.writerow({k: _to_serializable(v) for k, v in row.items()})
 
 
-def export_profile_csv(profile: np.ndarray, columns: List[str], path) -> None:
+def export_profile_csv(profile: np.ndarray, columns: list[str], path) -> None:
     """Salva um perfil (N estágios x n colunas) como CSV."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)

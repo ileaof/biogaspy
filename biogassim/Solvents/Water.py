@@ -1,20 +1,16 @@
 """Solvente físico: água (lavagem com água / Water Scrubbing)."""
 from __future__ import annotations
 
-from typing import List
-
-import numpy as np
-
+from ..Properties.Water import water_cp, water_density, water_viscosity
+from ..Thermodynamics.Henry import henry_water
 from .base import Solvent
-from ..Thermodynamics.Henry import henry_water, HenryLaw
-from ..Properties.Water import water_density, water_viscosity, water_cp
 
 
 class WaterSolvent(Solvent):
     """Água como solvente físico. Equilíbrio via lei de Henry."""
 
     name = "H2O"
-    absorbed_species: List[str] = ["CO2", "CH4", "N2", "H2S"]
+    absorbed_species: list[str] = ["CO2", "CH4", "N2", "H2S"]
 
     def __init__(self):
         self.henry = henry_water()

@@ -14,20 +14,23 @@ CH4, N2 e H2S usam solubilidade física (Henry) em ambos os modelos.
 """
 from __future__ import annotations
 
-from typing import List
-
 import numpy as np
 
+from ..Properties.Amines import (
+    amine_cp,
+    amine_density,
+    amine_viscosity,
+    heat_of_absorption,
+)
+from ..Properties.components import get
 from .base import Solvent
 from .KentEisenberg import KentEisenberg
-from ..Properties.Amines import amine_density, amine_viscosity, amine_cp, heat_of_absorption
-from ..Properties.components import get
 
 
 class MEASolvent(Solvent):
     name = "MEA"
     amine_name = "MEA"
-    absorbed_species: List[str] = ["CO2", "CH4", "N2", "H2S"]
+    absorbed_species: list[str] = ["CO2", "CH4", "N2", "H2S"]
 
     def __init__(self, w_mea: float = 0.30, alpha_max: float = 0.50,
                  enhancement: float = 120.0, H_phys: float = 1.6e8,
@@ -75,7 +78,7 @@ class MEASolvent(Solvent):
         return float(pCO2 / (P * max(x_co2, 1e-15)))
 
     # ------------------------------------------------------------------ #
-    def set_species_context(self, species: List[str]) -> None:
+    def set_species_context(self, species: list[str]) -> None:
         """Resolve índices de CO2 e MEA a partir da lista de espécies do
         Absorbedor. Deve ser chamado antes de K_value no modo Kent-Eisenberg.
         """

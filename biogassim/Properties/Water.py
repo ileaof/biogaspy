@@ -1,8 +1,6 @@
 """Propriedades específicas da água (líquido) para lavagem com água."""
 from __future__ import annotations
 
-import numpy as np
-
 from ..Core.constants import C_TO_K
 
 

@@ -6,8 +6,7 @@ As fontes são citadas para validação contra literatura.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, Optional
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -61,10 +60,10 @@ class Component:
     Pc: float                              # Pa
     omega: float                           # fator acêntrico
     Tb: float                              # K (ponto de ebulição a 1 atm)
-    Vc: Optional[float] = None             # m³/mol
-    Zc: Optional[float] = None
-    cp_ideal: Optional[ShomateCp] = None
-    Hvap: Optional[float] = None           # J/mol em Tb
+    Vc: float | None = None             # m³/mol
+    Zc: float | None = None
+    cp_ideal: ShomateCp | None = None
+    Hvap: float | None = None           # J/mol em Tb
     comment: str = ""
 
     def cp(self, T: float) -> float:
@@ -88,7 +87,7 @@ class Component:
 # Banco de componentes
 # Fontes: NIST Webbook (Shomate), DIPPR (Tc/Pc/ω), Yaws.
 # --------------------------------------------------------------------------- #
-_COMPONENTS: Dict[str, Component] = {
+_COMPONENTS: dict[str, Component] = {
     "CH4": Component(
         name="Methane", formula="CH4", MM=0.016043,
         Tc=190.564, Pc=4.599e6, omega=0.0115, Tb=111.66,
@@ -161,7 +160,7 @@ def get(name: str) -> Component:
     return _COMPONENTS[name]
 
 
-def all_components() -> Dict[str, Component]:
+def all_components() -> dict[str, Component]:
     return dict(_COMPONENTS)
 
 

@@ -1,7 +1,7 @@
 """Testes do solver numérico (Newton, Broyden)."""
 import numpy as np
 
-from biogassim.Core.solver import newton_raphson, broyden
+from biogassim.Core.solver import broyden, newton_raphson
 
 
 def test_newton_linear():

@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..Core.constants import R_J_MOL_K
-
 
 def fuller_gas(T: float, P: float, M_a: float, M_b: float,
                sigma_a: float, sigma_b: float) -> float:

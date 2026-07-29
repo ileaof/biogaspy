@@ -31,7 +31,6 @@ Equilíbrios:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Tuple
 
 import numpy as np
 
@@ -62,7 +61,7 @@ class KentEisenberg:
     dH7: float = -20000.0             # solubilidade física exotérmica
 
     # ------------------------------------------------------------------ #
-    def _K(self, T: float) -> Tuple[float, float, float, float, float, float]:
+    def _K(self, T: float) -> tuple[float, float, float, float, float, float]:
         vH = lambda dH: (dH / R) * (1.0 / T_REF - 1.0 / T)
         beta1 = 10.0 ** self.log_beta1 * np.exp(vH(self.dH1))
         beta2 = (10.0 ** self.log_beta2 * np.exp(vH(self.dH2))

@@ -34,18 +34,16 @@ N2) e validados nos testes de seletividade. Ver ``tests/test_solvents.py``
 """
 from __future__ import annotations
 
-from typing import List
-
 import numpy as np
 
-from .base import Solvent
 from ..Core.constants import R_J_MOL_K
+from .base import Solvent
 
 
 class _PhysicalSolvent(Solvent):
     """Base para solventes físicos genéricos (Henry por componente)."""
     name = "physical"
-    absorbed_species: List[str] = ["CO2", "CH4", "N2", "H2S"]
+    absorbed_species: list[str] = ["CO2", "CH4", "N2", "H2S"]
 
     # Href [Pa] @ 298,15 K, dH [J/mol] (dH>0 exotérmico); subclasses definem
     href: dict = {}

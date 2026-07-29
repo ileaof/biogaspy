@@ -1,17 +1,15 @@
 """Exemplo: PSA (Pressure Swing Adsorption) -- estimativa simplificada."""
 from __future__ import annotations
 
-from typing import Dict
-
-from ..PSA import PSACycle, fixed_bed_simple, selectivity
 from ..Export import export_json
+from ..PSA import PSACycle, fixed_bed_simple, selectivity
 from .common import BIOGAS
 
 OUTDIR = "examples_output"
 
 
 def run_case(P_high_bar: float = 7.0, P_low_bar: float = 0.2,
-             adsorbent: str = "Zeolite_13X", save: bool = True) -> Dict:
+             adsorbent: str = "Zeolite_13X", save: bool = True) -> dict:
     y_in = dict(BIOGAS)
     cycle = PSACycle(adsorbent=adsorbent, P_high=P_high_bar * 1e5,
                      P_low=P_low_bar * 1e5, T=298.15)
