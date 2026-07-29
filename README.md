@@ -94,12 +94,45 @@ python -m biogassim.gui.app    # inicia o pacote da GUI diretamente
 Num desktop normal (Windows/macOS/Linux) a janela abre com fontes normais —
 **não** defina `QT_QPA_PLATFORM=offscreen` (isso é apenas para testes headless).
 
-A GUI (PySide6 preferido, PyQt5 alternativo — via shim) traz o **editor
-interativo de composição** (spin + slider + presets, normalização e fração
-complementar em tempo real, com leitura contínua de MM, Z, densidade, LHV/HHV,
-Índice de Wobbe e densidade relativa), painel de condições operacionais,
-controles do solver com monitor de convergência, dashboard de resultados e um
-gráfico de desempenho vs. composição.
+#### Como usar a GUI
+
+A GUI (PySide6 preferido, PyQt5 alternativo — via shim) é a camada interativa
+sobre o mesmo motor de simulação da CLI. A janela tem cinco áreas:
+
+- **Condições operacionais** (topo, à esquerda) — escolha a **tecnologia**
+  (`water` ou `mea`) e ajuste vazão do biogás, pressão, razão L/V, número de
+  estágios e altura da coluna. Trocar a tecnologia carrega os valores padrão
+  correspondentes.
+- **Composição da alimentação** (meio, à esquerda) — defina a mistura CH₄/CO₂ por
+  um **preset** (biogás 47/53, digestor 60/40, aterro 50/50, metano puro), pelos
+  **campos numéricos em %** ou pelos **sliders**. A composição é normalizada e a
+  fração complementar é ajustada automaticamente (mexer no CH₄ atualiza o CO₂ e
+  vice-versa). O bloco **Propriedades da mistura** recalcula em tempo real: massa
+  molar, fator Z, densidade (a T,P) e normal, PCI/PCS (LHV/HHV), Índice de Wobbe
+  e densidade relativa ao ar.
+- **Solver** (base, à esquerda) — **Executar caso** roda a simulação com a
+  composição e as condições atuais; **Varrer composição** roda o estudo
+  paramétrico. A linha de status logo abaixo é o **monitor de convergência**
+  (convergiu?, número de iterações, pureza e recuperação).
+- **Resultados** (à direita) — tabela com pureza de CH₄, recuperação, remoção de
+  CO₂, perda de metano, consumo de solvente/água, energia, diâmetro e altura da
+  coluna, perda de carga, margem de inundação e custo específico.
+- **Mapa de desempenho** (base, à direita) — gráfico de pureza e recuperação de
+  CH₄ em função da fração de CH₄ na alimentação, gerado pela varredura.
+
+**Fluxo típico de uso:**
+
+1. Escolha a **tecnologia** no painel de condições operacionais.
+2. Defina a **composição** (preset, campo `%` ou slider) — as propriedades da
+   mistura são atualizadas a cada mudança.
+3. Ajuste as **condições operacionais** (pressão, L/V, estágios, altura).
+4. Clique em **Executar caso** — as métricas aparecem na tabela de resultados e o
+   status mostra a convergência.
+5. Clique em **Varrer composição** — o mapa de desempenho mostra como pureza e
+   recuperação variam na faixa de CH₄ (20–95%).
+
+Todos os cálculos reutilizam o mesmo núcleo da CLI (`biogassim.cases`); portanto,
+para as mesmas entradas, GUI e CLI produzem resultados idênticos.
 
 ## Uso como scripts
 
