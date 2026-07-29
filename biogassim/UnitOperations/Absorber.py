@@ -64,6 +64,7 @@ class AbsorberResult(UnitResult):
     KLa: float = 0.0
     stage_efficiency: float = 0.0
     pressure_drop: float = 0.0
+    flooding_fraction: float = 0.0      # u_op / u_flood (margem de inundação)
     # métricas de processo
     methane_recovery: float = 0.0
     methane_loss: float = 0.0
@@ -520,6 +521,7 @@ class Absorber:
             D = s.diameter
             u_op = G_mass / (rho_g * np.pi * D**2 / 4) if D > 0 else u_op
         res.diameter = D
+        res.flooding_fraction = float(u_op / u_flood) if u_flood > 0 else 0.0
         # perda de carga
         u_l = L_mass / (rho_l * np.pi * D**2 / 4) if D > 0 else 0.0
         res.pressure_drop = wet_pressure_drop(rho_l, rho_g, u_op, u_l, packing) * (s.height or 0.0)

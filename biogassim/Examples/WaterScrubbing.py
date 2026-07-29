@@ -19,11 +19,13 @@ OUTDIR = "examples_output"
 
 
 def run_case(P_bar: float = 20.0, L_over_V: float = 100.0, N_stages: int = 12,
-             height: float = 15.0, flow: float = 100.0, save: bool = True) -> dict:
+             height: float = 15.0, flow: float = 100.0, save: bool = True,
+             composition=None) -> dict:
     species = ["CH4", "CO2", "H2O"]
     P = P_bar * 1e5
     # compressão do biogás da pressão atmosférica até P
-    gas_in = biogas_stream(flow, species=species, T=298.15, P=1.01325e5)
+    gas_in = biogas_stream(flow, species=species, T=298.15, P=1.01325e5,
+                           composition=composition)
     comp = compress(gas_in, P, eta=0.75)
     gas_feed = comp.out
     # solvente: água a P

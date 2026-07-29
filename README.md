@@ -4,13 +4,14 @@ Simulador científico de **upgrading de biogás** (remoção de CO₂) em Python
 orientado a objetos e de código aberto. Projeto, análise e comparação de processos de
 purificação para produção de biometano a partir de biogás **47% CH₄ / 53% CO₂**.
 
-> **Status (v0.2):** 101 testes passando. Absorvedor com Newton global e balanço de
+> **Status (v0.2):** 128 testes passando. Absorvedor com Newton global e balanço de
 > energia adiabático; especiação **Kent-Eisenberg** rigorosa (MEA/DEA/MDEA); hidráulica
 > de coluna (flooding de Eckert, perda de carga de Stichlmair); estudos de sensibilidade
 > paramétrica; solventes físicos (Selexol/Rectisol) e MDEA calibrados vs. literatura;
-> **membranas multi-estágio** (mistura completa, reciclo do permeado, cascata em série).
-> Water Scrubbing e MEA validados ponta-a-ponta. GUI e export PDF/VTK/Tecplot = roadmap
-> (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)).
+> **membranas multi-estágio** (mistura completa, reciclo do permeado, cascata em série);
+> **CLI de casos CH₄–CO₂** (composição variável, propriedades de gás, varredura paramétrica).
+> Water Scrubbing e MEA validados ponta-a-ponta. GUI = próximo passo (ver
+> [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
 ## Instalação
 
@@ -32,6 +33,27 @@ python -m biogassim.cli compare            # tabela comparativa + gráficos
 ```
 
 Resultados e gráficos são salvos em `examples_output/`.
+
+### Casos e composição CH₄–CO₂ (Milestone 1)
+
+Fluxo de trabalho baseado em *casos* (JSON) para estudar o efeito da composição
+binária CH₄–CO₂ sobre desempenho, dimensionamento e economia:
+
+```bash
+biogassim new meu_projeto --tech water          # cria projeto + case.json padrão
+biogassim set CH4=0.60 --case meu_projeto/case.json   # CO2 vira 0.40 (complemento)
+biogassim run meu_projeto/case.json             # roda o caso, imprime métricas
+biogassim props CH4=0.60 CO2=0.40 --P 20        # MM, Z, densidade, LHV/HHV, Wobbe, SG
+biogassim sweep CH4=0.20:0.95:0.05 --out sweep.csv    # estudo paramétrico de composição
+biogassim export results.xlsx --case meu_projeto/case.json
+biogassim report --case meu_projeto/case.json   # relatório HTML
+```
+
+A composição é sempre normalizada (`xCH₄ + xCO₂ = 1`) e validada; a fração
+complementar é atualizada automaticamente. O `sweep` varre a fração de CH₄ e
+tabela pureza, recuperação, remoção de CO₂, perda de metano, consumo de
+solvente/água, energia, diâmetro/altura da coluna, perda de carga, margem de
+inundação e custo — a base dos mapas de desempenho.
 
 ## Uso como scripts
 

@@ -1,0 +1,182 @@
+"""Casos de simulação: modelo, I/O em JSON, validação e execução paramétrica.
+
+Um *caso* descreve uma simulação de upgrading de biogás CH4-CO2: a composição e
+vazão da alimentação, a tecnologia e as condições operacionais. Este módulo é a
+espinha dorsal da CLI (``new``/``run``/``set``/``sweep``): cria/carrega/valida
+casos, executa-os com composição **variável** e gera estudos paramétricos ao
+varrer a fração de CH4.
+
+Milestone 1 cobre as tecnologias de absorção binária CH4-CO2 ``water`` e ``mea``.
+"""
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import asdict, dataclass, field
+
+from .Examples import MEA, WaterScrubbing
+from .Optimization import Economics
+from .Properties import mixture_properties, normalize_composition
+
+TECHNOLOGIES = {"water": WaterScrubbing, "mea": MEA}
+
+DEFAULT_OPERATING = {
+    "water": {"P_bar": 20.0, "L_over_V": 100.0, "N_stages": 12, "height_m": 15.0},
+    "mea": {"P_bar": 2.0, "L_over_V": 20.0, "N_stages": 8, "height_m": 12.0},
+}
+
+
+@dataclass
+class Case:
+    """Um caso de simulação CH4-CO2."""
+    name: str = "case"
+    technology: str = "water"
+    feed: dict = field(default_factory=lambda: {"CH4": 0.47, "CO2": 0.53,
+                                                "flow_mols": 100.0})
+    operating: dict = field(default_factory=dict)
+
+
+def _valid_tech(t: str) -> str:
+    t = str(t).lower()
+    if t not in TECHNOLOGIES:
+        raise ValueError(f"Tecnologia '{t}' inválida. Use: {', '.join(TECHNOLOGIES)}.")
+    return t
+
+
+def default_case(name: str = "case", technology: str = "water") -> Case:
+    technology = _valid_tech(technology)
+    return Case(name=name, technology=technology,
+                feed={"CH4": 0.47, "CO2": 0.53, "flow_mols": 100.0},
+                operating=dict(DEFAULT_OPERATING[technology]))
+
+
+def validate_case(case: Case) -> Case:
+    """Normaliza a composição e valida tecnologia/vazão/operacionais (in-place)."""
+    case.technology = _valid_tech(case.technology)
+    x_ch4, x_co2 = normalize_composition(case.feed.get("CH4"), case.feed.get("CO2"))
+    case.feed["CH4"], case.feed["CO2"] = x_ch4, x_co2
+    flow = float(case.feed.get("flow_mols", 100.0))
+    if flow <= 0:
+        raise ValueError("flow_mols deve ser > 0.")
+    case.feed["flow_mols"] = flow
+    op = {**DEFAULT_OPERATING[case.technology], **(case.operating or {})}
+    if (op["N_stages"] < 1 or op["P_bar"] <= 0 or op["height_m"] <= 0
+            or op["L_over_V"] <= 0):
+        raise ValueError("Parâmetros operacionais devem ser positivos.")
+    case.operating = op
+    return case
+
+
+def save_case(case: Case, path: str) -> str:
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(asdict(case), f, indent=2, ensure_ascii=False)
+    return path
+
+
+def load_case(path: str) -> Case:
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    case = Case(name=data.get("name", "case"),
+                technology=data.get("technology", "water"),
+                feed=dict(data.get("feed", {})),
+                operating=dict(data.get("operating", {})))
+    return validate_case(case)
+
+
+def new_project(path: str, name: str | None = None, technology: str = "water") -> str:
+    """Cria um diretório de projeto com ``case.json`` padrão e pasta ``results/``."""
+    os.makedirs(path, exist_ok=True)
+    os.makedirs(os.path.join(path, "results"), exist_ok=True)
+    name = name or os.path.basename(os.path.normpath(path)) or "case"
+    case_path = os.path.join(path, "case.json")
+    save_case(default_case(name=name, technology=technology), case_path)
+    return case_path
+
+
+def run_case(case: Case, save: bool = False, outdir: str | None = None) -> dict:
+    """Executa um caso (composição variável) e devolve métricas completas."""
+    case = validate_case(case)
+    x_ch4, x_co2 = case.feed["CH4"], case.feed["CO2"]
+    op = case.operating
+    mod = TECHNOLOGIES[case.technology]
+    out = mod.run_case(P_bar=op["P_bar"], L_over_V=op["L_over_V"],
+                       N_stages=int(op["N_stages"]), height=op["height_m"],
+                       flow=case.feed["flow_mols"], save=False,
+                       composition={"CH4": x_ch4, "CO2": x_co2})
+    m = dict(out["metrics"])
+
+    # contexto de composição + propriedades do gás de alimentação
+    props = mixture_properties(ch4=x_ch4, co2=x_co2, T=298.15, P=op["P_bar"] * 1e5)
+    m["x_CH4"] = round(x_ch4, 4)
+    m["x_CO2"] = round(x_co2, 4)
+    m["feed_LHV_MJ_per_Nm3"] = round(props.LHV_MJ_per_Nm3, 2)
+    m["feed_wobbe_MJ_per_Nm3"] = round(props.wobbe_index_MJ_per_Nm3, 2)
+
+    # consumo de solvente / água
+    solvent_flow = op["L_over_V"] * case.feed["flow_mols"]           # mol/s
+    m["solvent_flow_mols"] = round(solvent_flow, 2)
+    if case.technology == "water":
+        m["water_m3_per_h"] = round(solvent_flow * 0.018 / 1000.0 * 3600.0, 2)
+
+    # economia
+    result = out["result"]
+    bio_nm3h = result.gas_out.flow * 0.0224 * 3600 if result.gas_out else 0.0
+    co2_kg_h = case.feed["flow_mols"] * x_co2 * (m.get("CO2_removal", 0) / 100.0) * 0.044 * 3600
+    econ = Economics.from_process(total_kw=m.get("total_kW", 0.0),
+                                  biometane_nm3h=bio_nm3h, co2_avoided_kg_h=co2_kg_h)
+    m["opex_usd_yr"] = round(econ.opex_usd_yr, 0)
+    m["specific_cost_usd_per_Nm3"] = round(econ.specific_cost_usd_per_nm3, 4)
+    m["co2_avoided_t_per_yr"] = round(econ.co2_avoided_t_per_yr, 1)
+
+    if save and outdir:
+        from .Export import export_json
+        os.makedirs(outdir, exist_ok=True)
+        export_json(m, os.path.join(outdir, f"{case.name}_results.json"))
+    return {"result": result, "metrics": m}
+
+
+# --------------------------- estudo paramétrico ---------------------------- #
+_SWEEP_KEYS = ["purity_CH4", "recovery_CH4", "CO2_removal", "methane_loss",
+               "solvent_flow_mols", "water_m3_per_h", "total_kW",
+               "specific_kWh_per_Nm3", "diameter_m", "height_m",
+               "pressure_drop_Pa", "flooding_pct", "specific_cost_usd_per_Nm3",
+               "converged"]
+
+
+def frange(start: float, stop: float, step: float) -> list[float]:
+    """Intervalo inclusivo de floats (start:stop:step), robusto a erro de ponto flutuante."""
+    if step <= 0:
+        raise ValueError("step deve ser > 0.")
+    n = int(round((stop - start) / step))
+    return [round(start + i * step, 10) for i in range(n + 1)]
+
+
+def sweep_composition(technology: str = "water", ch4_values=None,
+                      operating: dict | None = None, flow: float = 100.0,
+                      name: str = "sweep") -> list[dict]:
+    """Varre a fração de CH4 e coleta todas as métricas de desempenho por composição."""
+    technology = _valid_tech(technology)
+    if ch4_values is None:
+        ch4_values = frange(0.20, 0.95, 0.05)
+    rows = []
+    for x in ch4_values:
+        case = Case(name=name, technology=technology,
+                    feed={"CH4": float(x), "CO2": 1.0 - float(x), "flow_mols": flow},
+                    operating=dict(operating) if operating else {})
+        row = {"feed_CH4_pct": round(float(x) * 100, 1)}
+        try:
+            m = run_case(case)["metrics"]
+            row.update({k: m.get(k) for k in _SWEEP_KEYS})
+        except Exception as exc:                     # composição inviável -> reporta
+            row.update({k: None for k in _SWEEP_KEYS})
+            row["converged"] = False
+            row["error"] = str(exc)[:80]
+        rows.append(row)
+    return rows
+
+
+__all__ = [
+    "Case", "TECHNOLOGIES", "DEFAULT_OPERATING",
+    "default_case", "validate_case", "save_case", "load_case", "new_project",
+    "run_case", "sweep_composition", "frange",
+]

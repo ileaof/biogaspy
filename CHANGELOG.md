@@ -7,6 +7,18 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Adicionado
+- **Milestone 1 — CH₄–CO₂**: motor de composição e propriedades de gás
+  (`Properties/GasProperties.py`): normalização/validação da composição binária
+  e cálculo de massa molar, Z (Peng-Robinson), densidade real e normal, LHV/HHV
+  (por mol, Nm³ e kg), Índice de Wobbe e densidade relativa ao ar — validados
+  contra literatura (CH₄ puro: HHV ~39,8 MJ/Nm³, Wobbe ~53,5, LHV ~50 MJ/kg).
+- **Modelo de casos** (`biogassim/cases.py`): caso em JSON (composição, vazão,
+  tecnologia, condições), criação/carregamento/validação de projetos, execução
+  com **composição variável** e **varredura paramétrica** da fração de CH₄.
+- **CLI expandida**: `new`, `run`, `set` (com fração complementar automática),
+  `props`, `sweep`, `export` (xlsx/csv/json) e `report` (HTML).
+- Campo `flooding_fraction` (margem de inundação) exposto no `AbsorberResult` e
+  nas métricas; `composition` opcional nos exemplos Water/MEA e em `biogas_stream`.
 - **Membranas multi-estágio** (`biogassim/Membranes/`): modelo de mistura
   completa que **resolve** o corte de estágio θ a partir da área e das pressões
   (modo *rating*) ou dimensiona a área para um corte-alvo (modo *design*);

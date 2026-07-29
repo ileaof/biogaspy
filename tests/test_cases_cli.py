@@ -1,0 +1,113 @@
+"""Testes do modelo de casos, execução paramétrica e CLI (Milestone 1)."""
+import pytest
+
+from biogassim import cases
+from biogassim.cli import main
+
+
+# ------------------------------- modelo ------------------------------------ #
+def test_default_case_is_valid():
+    c = cases.validate_case(cases.default_case())
+    assert c.feed["CH4"] + c.feed["CO2"] == pytest.approx(1.0)
+    assert c.technology in cases.TECHNOLOGIES
+
+
+def test_validate_normalizes_composition():
+    c = cases.Case(feed={"CH4": 0.9, "CO2": 0.9, "flow_mols": 100.0})
+    cases.validate_case(c)
+    assert c.feed["CH4"] == pytest.approx(0.5)
+
+
+@pytest.mark.parametrize("case", [
+    cases.Case(feed={"CH4": -0.1, "CO2": 0.5, "flow_mols": 100.0}),
+    cases.Case(feed={"CH4": 0.5, "CO2": 0.5, "flow_mols": -1.0}),
+    cases.Case(technology="xyz"),
+])
+def test_invalid_cases_rejected(case):
+    with pytest.raises(ValueError):
+        cases.validate_case(case)
+
+
+def test_save_load_roundtrip(tmp_path):
+    c = cases.default_case(name="t", technology="mea")
+    p = tmp_path / "c.json"
+    cases.save_case(c, str(p))
+    c2 = cases.load_case(str(p))
+    assert c2.name == "t"
+    assert c2.technology == "mea"
+    assert c2.feed["CH4"] == pytest.approx(c.feed["CH4"])
+
+
+def test_new_project_scaffold(tmp_path):
+    proj = tmp_path / "proj"
+    cases.new_project(str(proj))
+    assert (proj / "case.json").exists()
+    assert (proj / "results").is_dir()
+
+
+def test_frange_inclusive():
+    assert cases.frange(0.2, 0.4, 0.1) == [0.2, 0.3, 0.4]
+
+
+# ------------------------------ execução ----------------------------------- #
+def test_run_case_water_metrics():
+    m = cases.run_case(cases.default_case(technology="water"))["metrics"]
+    for k in ["purity_CH4", "recovery_CH4", "CO2_removal", "methane_loss",
+              "solvent_flow_mols", "water_m3_per_h", "total_kW", "flooding_pct",
+              "x_CH4", "feed_LHV_MJ_per_Nm3", "specific_cost_usd_per_Nm3"]:
+        assert k in m
+    assert m["converged"]
+
+
+def test_run_case_mea_metrics():
+    m = cases.run_case(cases.default_case(technology="mea"))["metrics"]
+    assert m["converged"]
+    assert "rich_loading" in m
+
+
+def test_run_case_respects_composition():
+    lo = cases.run_case(cases.Case(technology="water",
+                                   feed={"CH4": 0.30, "CO2": 0.70, "flow_mols": 100.0}))["metrics"]
+    hi = cases.run_case(cases.Case(technology="water",
+                                   feed={"CH4": 0.80, "CO2": 0.20, "flow_mols": 100.0}))["metrics"]
+    assert lo["x_CH4"] == pytest.approx(0.30)
+    assert hi["x_CH4"] == pytest.approx(0.80)
+    assert hi["recovery_CH4"] > lo["recovery_CH4"]     # mais CH4 -> mais recuperação
+
+
+def test_sweep_composition_recovery_trend():
+    rows = cases.sweep_composition("water", ch4_values=cases.frange(0.30, 0.70, 0.20))
+    assert all(r["converged"] for r in rows)
+    recs = [r["recovery_CH4"] for r in rows]
+    assert recs == sorted(recs)
+
+
+# -------------------------------- CLI -------------------------------------- #
+def test_cli_props(capsys):
+    main(["props", "CH4=1.0"])
+    out = capsys.readouterr().out
+    assert "Wobbe" in out
+    assert "LHV_MJ_per_Nm3" in out
+
+
+def test_cli_set_complementary_and_run(tmp_path, capsys):
+    case = str(tmp_path / "case.json")
+    main(["set", "CH4=0.6", "--case", case])
+    c = cases.load_case(case)
+    assert c.feed["CO2"] == pytest.approx(0.4)         # fração complementar automática
+    main(["run", case])
+    assert "recovery_CH4" in capsys.readouterr().out
+
+
+def test_cli_sweep_exports_csv(tmp_path):
+    out = tmp_path / "sweep.csv"
+    main(["sweep", "CH4=0.4:0.6:0.1", "--tech", "water", "--out", str(out)])
+    assert out.exists()
+
+
+def test_cli_export_falls_back_when_no_openpyxl(tmp_path):
+    case = str(tmp_path / "case.json")
+    main(["set", "CH4=0.5", "--case", case])
+    main(["export", str(tmp_path / "r.xlsx"), "--case", case])
+    # xlsx (se openpyxl instalado) ou csv de fallback
+    assert (tmp_path / "r.xlsx").exists() or (tmp_path / "r.csv").exists()

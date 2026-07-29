@@ -32,10 +32,12 @@ def lean_solvent(species, flow: float, T=313.15, P=2e5, w_mea=0.30):
 
 
 def run_case(P_bar: float = 2.0, L_over_V: float = 20.0, N_stages: int = 8,
-             height: float = 12.0, flow: float = 100.0, save: bool = True) -> dict:
+             height: float = 12.0, flow: float = 100.0, save: bool = True,
+             composition=None) -> dict:
     species = ["CH4", "CO2", "H2O", "MEA"]
     P = P_bar * 1e5
-    gas_in = biogas_stream(flow, species=species, T=313.15, P=1.01325e5)
+    gas_in = biogas_stream(flow, species=species, T=313.15, P=1.01325e5,
+                           composition=composition)
     comp = compress(gas_in, P, eta=0.75)
     gas_feed = comp.out
     # garantir MEA/H2O zerados no gás

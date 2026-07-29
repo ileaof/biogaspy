@@ -14,13 +14,20 @@ BIOGAS_T = 298.15      # K (25 °C)
 BIOGAS_P = 1.01325e5   # Pa (1 atm)
 
 
-def biogas_stream(flow_mols: float = 100.0, species=None, T=BIOGAS_T, P=BIOGAS_P) -> Stream:
-    """Corrente de biogás padrão (CH4 47%, CO2 53%)."""
+def biogas_stream(flow_mols: float = 100.0, species=None, T=BIOGAS_T, P=BIOGAS_P,
+                  composition=None) -> Stream:
+    """Corrente de biogás.
+
+    ``composition`` (dict espécie->fração, ex.: ``{"CH4": 0.6, "CO2": 0.4}``)
+    permite variar a composição da alimentação; se omitido, usa o biogás padrão
+    47% CH4 / 53% CO2. ``Stream.make`` normaliza as frações automaticamente.
+    """
     if species is None:
         species = ["CH4", "CO2", "H2O"]
+    comp = BIOGAS if composition is None else composition
     z = np.zeros(len(species))
     for i, s in enumerate(species):
-        z[i] = BIOGAS.get(s, 0.0)
+        z[i] = comp.get(s, 0.0)
     return Stream.make(species, z, flow=flow_mols, T=T, P=P, phase="vapor")
 
 
@@ -40,6 +47,7 @@ def metrics_from_absorber(name: str, result, gas_in: Stream) -> dict:
         "KLa": round(result.KLa, 2) if np.isfinite(result.KLa) else None,
         "stage_efficiency": round(result.stage_efficiency, 3),
         "pressure_drop_Pa": round(result.pressure_drop, 1),
+        "flooding_pct": round(result.flooding_fraction * 100, 1),
         "converged": result.converged,
         "iterations": result.iterations,
     }
