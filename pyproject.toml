@@ -40,6 +40,11 @@ version = { attr = "biogassim.version.__version__" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = [
+    # matplotlib's Qt backend sets AA_UseHighDpiPixmaps, deprecated on Qt6/PySide6
+    # (third-party, harmless); silence just this one to keep the suite clean.
+    "ignore:.*AA_UseHighDpiPixmaps.*:DeprecationWarning",
+]
 
 [tool.ruff]
 line-length = 100
