@@ -4,7 +4,7 @@ Simulador científico de **upgrading de biogás** (remoção de CO₂) em Python
 orientado a objetos e de código aberto. Projeto, análise e comparação de processos de
 purificação para produção de biometano a partir de biogás **47% CH₄ / 53% CO₂**.
 
-> **Status (v0.2):** 128 testes passando. Absorvedor com Newton global e balanço de
+> **Status (v0.2):** 133 testes passando. Absorvedor com Newton global e balanço de
 > energia adiabático; especiação **Kent-Eisenberg** rigorosa (MEA/DEA/MDEA); hidráulica
 > de coluna (flooding de Eckert, perda de carga de Stichlmair); estudos de sensibilidade
 > paramétrica; solventes físicos (Selexol/Rectisol) e MDEA calibrados vs. literatura;
@@ -16,10 +16,27 @@ purificação para produção de biometano a partir de biogás **47% CH₄ / 53%
 ## Instalação
 
 ```bash
-pip install -e .            # ou: pip install -r requirements.txt
+pip install -e .              # instala o pacote + o comando `biogassim`
+# extras opcionais:
+pip install -e ".[gui]"       # interface gráfica (PySide6)
+pip install -e ".[excel]"     # export para .xlsx (openpyxl)
 ```
 
 Requer Python ≥ 3.10, numpy, scipy, matplotlib, pandas.
+
+## Como iniciar
+
+Após a instalação, a **linha de comando (CLI)** fica disponível de duas formas
+equivalentes — use a que preferir:
+
+```bash
+biogassim <comando>            # comando de console (requer a pasta de scripts do
+                               # Python no PATH)
+python -m biogassim.cli <comando>   # sempre funciona, sem depender do PATH
+```
+
+Veja todos os comandos com `biogassim --help`. Para abrir a **interface gráfica
+(GUI)**: `biogassim gui` (detalhes na seção [Interface gráfica](#interface-gráfica-gui)).
 
 ## Uso rápido (CLI)
 
@@ -57,10 +74,25 @@ inundação e custo — a base dos mapas de desempenho.
 
 ### Interface gráfica (GUI)
 
+![Interface gráfica do BioGasSim: editor interativo de composição CH₄–CO₂, condições operacionais, resultados e mapa de desempenho](docs/images/gui.png)
+
+Instale o extra da GUI (uma vez) e abra a janela principal:
+
 ```bash
-pip install -e ".[gui]"     # instala PySide6 (ou tenha PyQt5)
-biogassim gui               # abre a janela principal
+pip install -e ".[gui]"        # instala PySide6 (alternativamente, tenha PyQt5)
+biogassim gui                  # abre a janela principal
 ```
+
+Três formas equivalentes de iniciar a GUI — use qualquer uma:
+
+```bash
+biogassim gui                  # comando de console
+python -m biogassim.cli gui    # via a CLI (se `biogassim` não estiver no PATH)
+python -m biogassim.gui.app    # inicia o pacote da GUI diretamente
+```
+
+Num desktop normal (Windows/macOS/Linux) a janela abre com fontes normais —
+**não** defina `QT_QPA_PLATFORM=offscreen` (isso é apenas para testes headless).
 
 A GUI (PySide6 preferido, PyQt5 alternativo — via shim) traz o **editor
 interativo de composição** (spin + slider + presets, normalização e fração
