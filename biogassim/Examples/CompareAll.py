@@ -1,6 +1,7 @@
 """Comparação entre tecnologias de upgrading -- tabela + gráficos + export.
 
-Roda Water Scrubbing, MEA, PSA e Membrana sob o mesmo biogás 47/53 e gera
+Roda Water Scrubbing, MEA, PSA, Membrana (1 estágio) e Membrana multi-estágio
+(2 estágios + reciclo) sob o mesmo biogás 47/53 e gera
 tabela comparativa (pureza, recuperação, energia, custo, emissões evitadas,
 eficiência global) em CSV/JSON/HTML + gráfico de barras.
 """
@@ -9,7 +10,7 @@ from __future__ import annotations
 from ..Export import export_csv, export_excel, export_html, export_json
 from ..Optimization import Economics
 from ..Reporting import plot_comparison
-from . import MEA, PSA, Membrane, WaterScrubbing
+from . import MEA, PSA, Membrane, MembraneMultiStage, WaterScrubbing
 from .common import BIOGAS
 
 OUTDIR = "examples_output"
@@ -58,13 +59,22 @@ def run_all(flow: float = 100.0, save: bool = True) -> list[dict]:
     mp["global_efficiency_pct"] = _efficiency(mp)
     rows.append(_select(mp, is_stub=True))
 
-    # Membrane
+    # Membrane (1 estágio)
     mb = Membrane.run_case(save=False)
     mmb = dict(mb["metrics"])
     mmb["total_kW"] = round(30.0, 1)  # estimativa de compressor + vácuo
     mmb.update(_economics(mmb, mmb["total_kW"], flow))
     mmb["global_efficiency_pct"] = _efficiency(mmb)
     rows.append(_select(mmb, is_stub=True))
+
+    # Membrane multi-estágio (2 estágios + reciclo do permeado)
+    mms = MembraneMultiStage.run_case(save=False)
+    mmms = dict(mms["metrics"])
+    mmms["technology"] = "Membrane multi-stage"
+    mmms["total_kW"] = round(45.0, 1)  # estimativa: compressão + recompressão do reciclo
+    mmms.update(_economics(mmms, mmms["total_kW"], flow))
+    mmms["global_efficiency_pct"] = _efficiency(mmms)
+    rows.append(_select(mmms, is_stub=True))
 
     if save:
         export_csv(rows, f"{OUTDIR}/comparison.csv")
