@@ -71,8 +71,13 @@ a especificação completa (nível Aspen/DWSIM).
 
 - [ ] **PSA dinâmico**: ciclo Skarstrom completo (pressurização, adsorção, blowdown,
       purga), múltiplos leitos, integração temporal, balanço de energia do leito.
-- [ ] **Membranas multi-estágio**: reciclo, cascata, modelo cross-flow resolvido
-      (não só corte de estágio fixo).
+- [x] **Membranas multi-estágio**: modelo de mistura completa que **resolve** o
+      corte de estágio θ a partir da área e das pressões (não mais fixo); dois
+      estágios com **reciclo do permeado** (configuração padrão de biometano) e
+      **cascata de N estágios em série**. `single_stage`/`two_stage_recycle`/
+      `series_stages` + `tests/test_membrane.py` (10 testes). *Refinamento
+      futuro:* modelo cross-flow/contracorrente resolvido ao longo do módulo (o
+      de mistura completa é conservador para seletividade alta).
 - [x] **Selexol / Rectisol calibrados vs literatura**: constantes de Henry
       absolutas (Href @298 K) calibradas contra dados reais de solubilidade --
       Selexol (DEPG) vs Henni et al. (2005) e Burr & Lyddon (CO2 3,0 MPa, CH4 38,

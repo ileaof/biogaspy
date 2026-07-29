@@ -15,15 +15,16 @@ def run_case(material: str = "CelluloseAcetate", P_feed_bar: float = 10.0,
              flow: float = 100.0, save: bool = True) -> dict:
     species = ["CH4", "CO2"]
     z = np.array([BIOGAS["CH4"], BIOGAS["CO2"]])
+    # modo design: dado o corte-alvo, resolve a área requerida (não mais fixa).
     r = single_stage(material, species, z, flow, 308.15,
-                     P_feed_bar * 1e5, P_perm_bar * 1e5, area=50.0, stage_cut=stage_cut)
+                     P_feed_bar * 1e5, P_perm_bar * 1e5, stage_cut=stage_cut)
     metrics = {
         "technology": f"Membrane ({material})",
         "purity_CH4": round(r.purity_CH4 * 100, 2),
         "recovery_CH4": round(r.recovery_CH4 * 100, 2),
         "CO2_removal": round(r.CO2_removal * 100, 2),
-        "stage_cut": stage_cut,
-        "area_m2": r.area,
+        "stage_cut": round(r.stage_cut, 4),
+        "area_m2": round(r.area, 1),
         "message": r.message,
     }
     if save:

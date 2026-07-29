@@ -7,11 +7,21 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Adicionado
+- **Membranas multi-estágio** (`biogassim/Membranes/`): modelo de mistura
+  completa que **resolve** o corte de estágio θ a partir da área e das pressões
+  (modo *rating*) ou dimensiona a área para um corte-alvo (modo *design*);
+  `two_stage_recycle` (dois estágios com reciclo do permeado — configuração
+  padrão de biometano, resolvida por Wegstein) e `series_stages` (cascata de N
+  estágios em série). Permeância (permeabilidade / espessura) adicionada a
+  `MembraneMaterial`. Exemplo `MembraneMultiStage`, comando de CLI
+  `run-membrane-multi` e `tests/test_membrane.py` (10 testes).
 - Configuração de lint (`ruff`) e cobertura (`pytest-cov`) em `pyproject.toml`.
 - Integração contínua (GitHub Actions): lint + testes em Python 3.10–3.12.
 - Arquivo `LICENSE` (MIT), `CHANGELOG.md` e `.gitattributes`.
 
 ### Alterado
+- Exemplo de membrana de 1 estágio agora usa o modo *design* (a **área** é
+  resultado calculado, não mais um valor fixo ignorado).
 - Versão agora é fonte única em `biogassim/version.py` (pyproject usa `dynamic`).
 - Anotações de tipo modernizadas para sintaxe PEP 585/604 (`list[...]`, `X | None`).
 

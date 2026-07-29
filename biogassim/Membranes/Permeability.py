@@ -12,10 +12,21 @@ class MembraneMaterial:
     name: str
     permeability: dict[str, float]   # Barrer
     selectivity_notes: str = ""
+    thickness_um: float = 1.0        # espessura da camada seletiva (µm)
 
     def perm_si(self, species: str) -> float:
         """Permeabilidade em mol/(m·s·Pa)."""
         return float(self.permeability.get(species, 1.0) * BARRER)
+
+    def permeance_si(self, species: str, thickness_um: float | None = None) -> float:
+        """Permeância = permeabilidade / espessura, em mol/(m²·s·Pa).
+
+        A permeância (não a permeabilidade) é o que, multiplicada pela área e
+        pela diferença de pressão parcial, dá o fluxo molar. Usa a espessura da
+        camada seletiva do material (``thickness_um``), sobreponível por chamada.
+        """
+        t_um = self.thickness_um if thickness_um is None else thickness_um
+        return self.perm_si(species) / (t_um * 1.0e-6)
 
 
 MEMBRANES: dict[str, MembraneMaterial] = {

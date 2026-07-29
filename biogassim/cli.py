@@ -5,6 +5,7 @@ Uso:
   python -m biogassim.cli run-mea
   python -m biogassim.cli run-psa
   python -m biogassim.cli run-membrane
+  python -m biogassim.cli run-membrane-multi
   python -m biogassim.cli compare
 """
 from __future__ import annotations
@@ -47,7 +48,12 @@ def _cmd_run_membrane(args):
     from .Examples import Membrane
     m = Membrane.run_case(material=args.material, P_feed_bar=args.P,
                           stage_cut=args.stage_cut)["metrics"]
-    _print(m, "MEMBRANA")
+    _print(m, "MEMBRANA (1 estágio)")
+
+
+def _cmd_run_membrane_multi(args):
+    from .Examples import MembraneMultiStage
+    MembraneMultiStage.main()
 
 
 def _cmd_compare(args):
@@ -87,6 +93,10 @@ def build_parser() -> argparse.ArgumentParser:
                       choices=["CelluloseAcetate", "Polyimide", "Polysulfone", "Silica"])
     pmem.add_argument("--stage-cut", type=float, default=0.5)
     pmem.set_defaults(func=_cmd_run_membrane)
+
+    pmm = sub.add_parser("run-membrane-multi",
+                         help="Membrana multi-estágio (1 vs 2-estágios+reciclo vs série)")
+    pmm.set_defaults(func=_cmd_run_membrane_multi)
 
     pc = sub.add_parser("compare", help="Comparar todas as tecnologias")
     pc.set_defaults(func=_cmd_compare)

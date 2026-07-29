@@ -4,10 +4,11 @@ Simulador científico de **upgrading de biogás** (remoção de CO₂) em Python
 orientado a objetos e de código aberto. Projeto, análise e comparação de processos de
 purificação para produção de biometano a partir de biogás **47% CH₄ / 53% CO₂**.
 
-> **Status (v0.2):** 91 testes passando. Absorvedor com Newton global e balanço de
+> **Status (v0.2):** 101 testes passando. Absorvedor com Newton global e balanço de
 > energia adiabático; especiação **Kent-Eisenberg** rigorosa (MEA/DEA/MDEA); hidráulica
 > de coluna (flooding de Eckert, perda de carga de Stichlmair); estudos de sensibilidade
-> paramétrica; solventes físicos (Selexol/Rectisol) e MDEA calibrados vs. literatura.
+> paramétrica; solventes físicos (Selexol/Rectisol) e MDEA calibrados vs. literatura;
+> **membranas multi-estágio** (mistura completa, reciclo do permeado, cascata em série).
 > Water Scrubbing e MEA validados ponta-a-ponta. GUI e export PDF/VTK/Tecplot = roadmap
 > (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
@@ -26,6 +27,7 @@ python -m biogassim.cli run-water          # lavagem com água (20 bar)
 python -m biogassim.cli run-mea            # lavagem química com MEA (2 bar)
 python -m biogassim.cli run-psa            # PSA (estimativa)
 python -m biogassim.cli run-membrane       # membrana (1 estágio)
+python -m biogassim.cli run-membrane-multi # membrana multi-estágio (reciclo/série)
 python -m biogassim.cli compare            # tabela comparativa + gráficos
 ```
 
@@ -36,6 +38,7 @@ Resultados e gráficos são salvos em `examples_output/`.
 ```bash
 python -m biogassim.Examples.WaterScrubbing
 python -m biogassim.Examples.MEA
+python -m biogassim.Examples.MembraneMultiStage   # 1 vs 2-estágios+reciclo vs série
 python -m biogassim.Examples.CompareAll
 ```
 
@@ -87,7 +90,7 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) e [`docs/ROADMAP.md`](docs/RO
 | DEA / MDEA | ✅ / ~ | Kent-Eisenberg rigoroso; MDEA calibrado (VLE, Huttenhuis 2007), DEA a calibrar |
 | Selexol / Rectisol | ✅ funcional | solventes físicos (Henry), calibrados vs. literatura |
 | PSA | ~ estimativa | isoterma + seletividade; ciclo dinâmico = roadmap |
-| Membranas | ~ 1 estágio | solução-difusão; multi-estágio = roadmap |
+| Membranas | ✅ 1 e multi-estágio | mistura completa (resolve θ); 1 estágio, 2-estágios + reciclo, cascata em série |
 
 ## Validação
 

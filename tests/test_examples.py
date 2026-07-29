@@ -1,7 +1,14 @@
 """Smoke tests dos exemplos e unidades auxiliares."""
 import pytest
 
-from biogassim.Examples import MEA, PSA, CompareAll, Membrane, WaterScrubbing
+from biogassim.Examples import (
+    MEA,
+    PSA,
+    CompareAll,
+    Membrane,
+    MembraneMultiStage,
+    WaterScrubbing,
+)
 from biogassim.UnitOperations.base import Stream
 from biogassim.UnitOperations.Compressor import compress
 
@@ -34,6 +41,20 @@ def test_membrane_example_runs(tmp_path, monkeypatch):
     m = Membrane.run_case(save=False)["metrics"]
     assert m["purity_CH4"] > 0
     assert 0 <= m["recovery_CH4"] <= 100
+    assert m["area_m2"] > 0                       # área agora é resolvida
+
+
+def test_membrane_multistage_example_runs(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    out = MembraneMultiStage.run_case(save=True)
+    m = out["metrics"]
+    assert m["two_stage_converged"]
+    assert m["mass_balance_error"] < 1e-6
+    assert 0 < m["recovery_CH4"] <= 100
+    # o reciclo recupera mais CH4 que um único estágio de corte comparável
+    single, two = m["rows"][0], m["rows"][1]
+    assert two["recovery_CH4"] > single["recovery_CH4"]
+    assert (tmp_path / "examples_output" / "membrane_multistage_results.json").exists()
 
 
 def test_compare_runs(tmp_path, monkeypatch):
