@@ -7,6 +7,13 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Adicionado
+- **Estudos paramétricos multivariável + otimização** (`biogassim/studies.py` +
+  CLI `sensitivity`/`optimize`): superfícies de resposta 1-D/2-D sobre qualquer
+  combinação de composição (`CH4`) e variáveis operacionais (`P_bar`,
+  `L_over_V`, `N_stages`, `height_m`, `flow_mols`), com o conjunto completo de
+  métricas; heatmap/curva em PNG. `optimize` faz busca em grade sob restrições
+  (objetivo min/max com constraints de pureza/recuperação/etc.) a partir de um
+  JSON de especificação.
 - **Composição multicomponente** (`Properties/GasProperties.py`): a alimentação
   não é mais restrita a CH₄–CO₂. Suporta qualquer subconjunto de CH₄, CO₂, N₂,
   O₂, H₂, H₂O, H₂S, NH₃, CO, Ar (H₂/NH₃/CO/Ar adicionados ao banco de

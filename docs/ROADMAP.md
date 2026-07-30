@@ -37,6 +37,13 @@ a especificação completa (nível Aspen/DWSIM).
       `Examples/Sensitivity.py` exporta CSV/JSON/PNG; testes em
       `tests/test_sensitivity.py` (monotonicidade física, formato da grade,
       carregamento viável).
+- [x] **Estudos paramétricos multivariável + otimização** (`biogassim/studies.py`):
+      superfícies de resposta 1-D/2-D sobre composição (`CH4`) e/ou variáveis
+      operacionais (`P_bar`, `L_over_V`, `N_stages`, `height_m`, `flow_mols`) com
+      o conjunto completo de métricas, e busca em grade sob restrições
+      (`optimize`). CLI `sensitivity`/`optimize`, PNG (curva/heatmap),
+      `tests/test_studies.py` (10). *Futuro:* execução paralela, superfícies com
+      >2 variáveis, otimizador contínuo (scipy.optimize).
 - [x] **Hidráulica de coluna rigorosa**: correlação de flooding GPDC de Eckert
       (SI) com curva de flood calibrada vs anéis Pall (Pall 50 ~2,2 m/s,
       Pall 25 ~1,4 m/s em ar/água 1 atm), e perda de carga mecânica de

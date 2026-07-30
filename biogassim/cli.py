@@ -12,6 +12,8 @@ Uso (casos, composição e lote):
   biogassim props CH4=0.5 CO2=0.5 --basis mass       # base massica
   biogassim sweep CH4=0.20:0.95:0.05 --tech water --out sweep.csv
   biogassim batch feeds.csv --tech water --out results.csv
+  biogassim sensitivity P_bar=5:30:5 --vary L_over_V=20:120:20 --plot surf.png
+  biogassim optimize optimization.json --out best.json
   biogassim export results.xlsx --case meu_projeto/case.json
   biogassim report --case meu_projeto/case.json
 """
@@ -213,6 +215,83 @@ def _cmd_sweep(args):
         print(f"Exportado: {args.out}")
 
 
+def _parse_range(spec):
+    """'L_over_V=40:120:20' -> ('L_over_V', (40.0, 120.0, 20.0))."""
+    (name, rng), = _parse_assignments([spec]).items()
+    parts = rng.split(":")
+    if len(parts) != 3:
+        raise SystemExit(f"Intervalo inválido '{spec}'. Use VAR=inicio:fim:passo.")
+    a, b, step = (float(p) for p in parts)
+    return name, (a, b, step)
+
+
+def _cmd_sensitivity(args):
+    from . import cases, studies
+    from .Export import export_csv, export_json
+    var_x, rx = _parse_range(args.spec)
+    var_y = None
+    if args.vary:
+        var_y, ry = _parse_range(args.vary)
+        rows = studies.sweep_2d(args.tech, var_x, cases.frange(*rx),
+                                var_y, cases.frange(*ry), flow=args.flow)
+    else:
+        rows = studies.sweep_1d(args.tech, var_x, cases.frange(*rx), flow=args.flow)
+    ok = sum(1 for r in rows if r.get("converged"))
+    dims = f"{var_x}" + (f" × {var_y}" if var_y else "")
+    print("=" * 72)
+    print(f"SENSIBILIDADE -- {args.tech}: {dims}  ({ok}/{len(rows)} convergiram)")
+    print("=" * 72)
+    for r in rows[:24]:
+        coord = f"{var_x}={r[var_x]}" + (f" {var_y}={r[var_y]}" if var_y else "")
+        print(f"  {coord:<28} pureza={r.get('purity_CH4')!s:>7} "
+              f"recup={r.get('recovery_CH4')!s:>7} kW={r.get('total_kW')!s:>8} "
+              f"{args.metric}={r.get(args.metric)}")
+    if len(rows) > 24:
+        print(f"  ... (+{len(rows) - 24} pontos)")
+    if args.out:
+        if args.out.endswith(".json"):
+            export_json({"sensitivity": rows}, args.out)
+        else:
+            export_csv(rows, args.out)
+        print(f"Exportado: {args.out}")
+    if args.plot:
+        ok_plot = studies.plot_surface(rows, var_x, args.metric, args.plot, var_y=var_y)
+        print(f"Gráfico: {args.plot}" if ok_plot else "matplotlib indisponível: sem gráfico.")
+
+
+def _cmd_optimize(args):
+    import json
+
+    from . import studies
+    from .Export import export_json
+    with open(args.spec, encoding="utf-8") as f:
+        cfg = json.load(f)
+    res = studies.optimize(
+        technology=cfg.get("technology", "water"),
+        objective=cfg["objective"],
+        variables={k: tuple(v) for k, v in cfg["variables"].items()},
+        constraints={k: tuple(v) for k, v in cfg.get("constraints", {}).items()},
+        goal=cfg.get("goal", "minimize"),
+        flow=float(cfg.get("flow_mols", 100.0)))
+    print("=" * 66)
+    print(f"OTIMIZAÇÃO -- {res['n_feasible']}/{res['n_evaluated']} pontos viáveis")
+    print("=" * 66)
+    if res["best"] is None:
+        print(res.get("message", "Nenhum ponto viável."))
+    else:
+        b = res["best"]
+        print(f"  Objetivo : {b['objective']} = {b['value']}  ({b['goal']})")
+        print(f"  Variáveis: {b['variables']}")
+        m = b["metrics"]
+        print(f"  Pureza CH4     : {m.get('purity_CH4')} %")
+        print(f"  Recuperação CH4: {m.get('recovery_CH4')} %")
+        print(f"  Energia total  : {m.get('total_kW')} kW")
+        print(f"  Custo esp.     : {m.get('specific_cost_usd_per_Nm3')} USD/Nm³")
+    if args.out:
+        export_json(res, args.out)
+        print(f"Exportado: {args.out}")
+
+
 def _cmd_export(args):
     from . import cases
     from .Export import export_csv, export_json
@@ -340,6 +419,24 @@ def build_parser() -> argparse.ArgumentParser:
     psw.add_argument("--case", default=None, help="Caso p/ herdar condições operacionais")
     psw.add_argument("--out", default=None, help="Exportar (.csv ou .json)")
     psw.set_defaults(func=_cmd_sweep)
+
+    pse = sub.add_parser("sensitivity",
+                         help="Estudo paramétrico / superfície de resposta (1-D ou 2-D)")
+    pse.add_argument("spec", help="VAR=inicio:fim:passo (ex.: L_over_V=40:120:20)")
+    pse.add_argument("--vary", default=None,
+                     help="Segunda variável VAR=inicio:fim:passo (torna 2-D)")
+    pse.add_argument("--tech", default="water", choices=["water", "mea"])
+    pse.add_argument("--metric", default="recovery_CH4",
+                     help="Métrica p/ o gráfico (ex.: recovery_CH4, specific_kWh_per_Nm3)")
+    pse.add_argument("--flow", type=float, default=100.0, help="Vazão do biogás (mol/s)")
+    pse.add_argument("--out", default=None, help="Exportar tabela (.csv ou .json)")
+    pse.add_argument("--plot", default=None, help="Gráfico PNG (curva 1-D ou heatmap 2-D)")
+    pse.set_defaults(func=_cmd_sensitivity)
+
+    popt = sub.add_parser("optimize", help="Otimização (busca em grade) a partir de um JSON")
+    popt.add_argument("spec", help="Arquivo JSON: objective/goal/variables/constraints")
+    popt.add_argument("--out", default=None, help="Exportar resultado (.json)")
+    popt.set_defaults(func=_cmd_optimize)
 
     pe = sub.add_parser("export", help="Executar um caso e exportar (.xlsx/.csv/.json)")
     pe.add_argument("output", help="Arquivo de saída (extensão define o formato)")

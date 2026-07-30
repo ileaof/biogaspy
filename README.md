@@ -4,14 +4,14 @@ Simulador científico de **upgrading de biogás** (remoção de CO₂) em Python
 orientado a objetos e de código aberto. Projeto, análise e comparação de processos de
 purificação para produção de biometano a partir de biogás **47% CH₄ / 53% CO₂**.
 
-> **Status (v0.2):** 149 testes passando. Absorvedor com Newton global e balanço de
+> **Status (v0.2):** 159 testes passando. Absorvedor com Newton global e balanço de
 > energia adiabático; especiação **Kent-Eisenberg** rigorosa (MEA/DEA/MDEA); hidráulica
 > de coluna (flooding de Eckert, perda de carga de Stichlmair); estudos de sensibilidade
 > paramétrica; solventes físicos (Selexol/Rectisol) e MDEA calibrados vs. literatura;
 > **membranas multi-estágio** (mistura completa, reciclo do permeado, cascata em série);
 > **CLI de casos** (composição variável, varredura paramétrica); **GUI** (PySide6/PyQt5);
 > e **composição multicomponente** (CH₄/CO₂/N₂/O₂/H₂/H₂O/H₂S/NH₃/CO/Ar) com propriedades
-> de gás e simulação em lote.
+> de gás, simulação em lote e estudos paramétricos/otimização.
 > Water Scrubbing e MEA validados ponta-a-ponta (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
 ## Instalação
@@ -94,6 +94,37 @@ mistura; com `--tech`, roda também o upgrading sobre a subcomposição CH₄/CO
 reporta a fração inerte. **Nota:** o solver de absorção modela hoje a remoção de
 CO₂ (CH₄/CO₂); N₂/O₂/H₂/Ar/H₂S entram como diluentes (aparecem nas propriedades,
 não no balanço da coluna). Absorção multicomponente (ex.: H₂S) = roadmap.
+
+### Estudos paramétricos e otimização
+
+Superfícies de resposta (1-D ou 2-D) sobre qualquer combinação de **composição**
+(`CH4`) e **variáveis operacionais** (`P_bar`, `L_over_V`, `N_stages`,
+`height_m`, `flow_mols`), coletando o conjunto completo de métricas:
+
+```bash
+biogassim sensitivity L_over_V=40:120:20 --tech water --out curva.csv
+biogassim sensitivity P_bar=5:30:5 --vary L_over_V=20:120:20 \
+          --metric recovery_CH4 --out surf.csv --plot surf.png    # heatmap 2-D
+```
+
+A **otimização** faz busca em grade sob restrições (JSON de especificação):
+
+```bash
+biogassim optimize optimization.json --out best.json
+```
+
+```json
+{
+  "technology": "water",
+  "objective": "specific_kWh_per_Nm3",
+  "goal": "minimize",
+  "variables": {"L_over_V": [40, 120, 40], "P_bar": [10, 25, 5]},
+  "constraints": {"purity_CH4": [">=", 99.9], "recovery_CH4": [">=", 90]}
+}
+```
+
+→ acha a condição de **menor energia específica** que satisfaz pureza ≥ 99,9% e
+recuperação ≥ 90% (ex.: L/V=120, P=15 bar → 0,48 kWh/Nm³).
 
 ### Interface gráfica (GUI)
 
@@ -233,7 +264,7 @@ Validação sistemática contra Aspen Plus/DWSIM é meta futura (ROADMAP).
 
 ```bash
 pip install -e ".[dev,excel,gui]"   # pytest, pytest-cov, ruff, openpyxl, PySide6
-pytest -q                       # roda os 149 testes (GUI é pulada sem Qt instalado)
+pytest -q                       # roda os 159 testes (GUI é pulada sem Qt instalado)
 pytest --cov=biogassim          # com cobertura
 ruff check biogassim tests      # lint
 ruff check --fix biogassim tests   # corrige o que for auto-corrigível
