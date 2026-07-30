@@ -79,10 +79,13 @@ a especificação completa (nível Aspen/DWSIM).
 - [~] **Composição multicomponente**: *feito* — alimentação arbitrária
       (CH₄/CO₂/N₂/O₂/H₂/H₂O/H₂S/NH₃/CO/Ar) com propriedades de mistura (MM, Z,
       densidade, LHV/HHV, Wobbe, SG) em qualquer base (molar/mássica/volumétrica/
-      vazão), CLI `props`/`batch` e `biogassim/batch.py`. *Pendente:* **absorção
-      multicomponente no solver** — hoje o absorvedor modela a remoção de CO₂
-      (CH₄/CO₂); N₂/O₂/H₂/Ar entram como diluentes e H₂S/NH₃ ainda não são
-      absorvidos (precisa de modelos de solvente para H₂S/NH₃).
+      vazão), CLI `props`/`batch` e `biogassim/batch.py`. **Absorção multi-gás no
+      water scrubbing** *feita*: água absorve CO₂, H₂S (≈3× mais solúvel) e NH₃;
+      N₂/O₂/H₂/Ar/CO passam direto; remoção reportada por espécie
+      (`tests/test_acidgas.py`, 9). *Pendente:* **absorção reativa de H₂S/NH₃ em
+      aminas** (MEA/DEA/MDEA) — precisa da especiação ácido-base do H₂S/NH₃ na
+      amina (hoje o modelo de amina trata só CO₂); e H₂S nos solventes físicos
+      (Selexol/Rectisol já têm Henry de H₂S — falta ligar no runner).
 - [ ] **PSA dinâmico**: ciclo Skarstrom completo (pressurização, adsorção, blowdown,
       purga), múltiplos leitos, integração temporal, balanço de energia do leito.
 - [x] **Membranas multi-estágio**: modelo de mistura completa que **resolve** o

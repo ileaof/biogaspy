@@ -10,7 +10,8 @@ class WaterSolvent(Solvent):
     """Água como solvente físico. Equilíbrio via lei de Henry."""
 
     name = "H2O"
-    absorbed_species: list[str] = ["CO2", "CH4", "N2", "H2S"]
+    # gases com equilíbrio de Henry cadastrado (ver Thermodynamics.Henry)
+    absorbed_species: list[str] = ["CO2", "CH4", "N2", "H2S", "O2", "H2", "Ar", "CO", "NH3"]
 
     def __init__(self):
         self.henry = henry_water()
@@ -26,7 +27,9 @@ class WaterSolvent(Solvent):
     def heat_of_absorption(self, species: str) -> float:
         # calor de solução aproximado (exotérmico -> negativo na dissolução,
         # usamos magnitude como calor liberado)
-        return {"CO2": 20000.0, "CH4": 14000.0, "H2S": 21000.0, "N2": 10000.0}.get(species, 15000.0)
+        return {"CO2": 20000.0, "CH4": 14000.0, "H2S": 21000.0, "N2": 10000.0,
+                "O2": 12000.0, "H2": 4000.0, "Ar": 12000.0, "CO": 12000.0,
+                "NH3": 34000.0}.get(species, 15000.0)
 
     def density(self, T: float) -> float:
         return water_density(T)

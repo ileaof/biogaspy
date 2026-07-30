@@ -13,7 +13,7 @@ from ..Reporting import plot_column_profiles, plot_equilibrium_curve
 from ..Solvents import WaterSolvent
 from ..UnitOperations import Absorber, AbsorberSpec, Stream
 from ..UnitOperations.Compressor import compress
-from .common import biogas_stream, metrics_from_absorber
+from .common import BIOGAS, biogas_stream, metrics_from_absorber
 
 OUTDIR = "examples_output"
 
@@ -21,15 +21,23 @@ OUTDIR = "examples_output"
 def run_case(P_bar: float = 20.0, L_over_V: float = 100.0, N_stages: int = 12,
              height: float = 15.0, flow: float = 100.0, save: bool = True,
              composition=None) -> dict:
-    species = ["CH4", "CO2", "H2O"]
+    # conjunto de espécies montado a partir da composição (multi-gás): água
+    # absorve CO2, H2S, NH3 etc.; N2/O2/H2/Ar passam praticamente direto.
+    comp_dict = composition or {"CH4": BIOGAS["CH4"], "CO2": BIOGAS["CO2"]}
+    gas_species = [s for s in comp_dict if float(comp_dict.get(s, 0.0)) > 0.0 and s != "H2O"]
+    if not gas_species:
+        gas_species = ["CH4", "CO2"]
+    species = [*gas_species, "H2O"]
     P = P_bar * 1e5
     # compressão do biogás da pressão atmosférica até P
     gas_in = biogas_stream(flow, species=species, T=298.15, P=1.01325e5,
-                           composition=composition)
+                           composition=comp_dict)
     comp = compress(gas_in, P, eta=0.75)
     gas_feed = comp.out
     # solvente: água a P
-    solv = Stream.make(species, [0.0, 0.0, 1.0], flow=L_over_V * flow,
+    z_solv = np.zeros(len(species))
+    z_solv[species.index("H2O")] = 1.0
+    solv = Stream.make(species, z_solv, flow=L_over_V * flow,
                       T=293.15, P=P, phase="liquid")
     spec = AbsorberSpec(N_stages=N_stages, packing="Pall_50",
                         mode="isothermal", T_op=293.15, pressure=P, height=height,
@@ -37,6 +45,15 @@ def run_case(P_bar: float = 20.0, L_over_V: float = 100.0, N_stages: int = 12,
     r = Absorber(gas_feed, solv, WaterSolvent(), spec).solve()
 
     metrics = metrics_from_absorber("Water Scrubbing", r, gas_in)
+    # remoção por espécie para gases além de CH4/CO2 (H2S, NH3, N2, ...)
+    for s in gas_species:
+        if s in ("CH4", "CO2"):
+            continue
+        i = gas_in.species.index(s)
+        fin = gas_in.flow * gas_in.z[i]
+        if fin > 1e-12:
+            fout = r.gas_out.flow * r.gas_out.z[i]
+            metrics[f"{s}_removal"] = round(100.0 * (1.0 - fout / fin), 2)
     # energia
     energy = EnergySummary(compression=compression_energy([comp]),
                            pumping=L_over_V * flow * 0.018 / 1000 * P / 0.7 / 1000)
@@ -55,8 +72,9 @@ def run_case(P_bar: float = 20.0, L_over_V: float = 100.0, N_stages: int = 12,
                            [f"x_{s}" for s in species] + [f"y_{s}" for s in species] + ["T_K"],
                            f"{OUTDIR}/water_profiles.csv")
         plot_column_profiles(r, species, f"{OUTDIR}/water_profiles.png")
-        K_co2 = float(r.K_profile[species.index("CO2")].mean())
-        plot_equilibrium_curve(K_co2, f"{OUTDIR}/water_equilibrium.png", label="CO2 (water)")
+        if "CO2" in species:
+            K_co2 = float(r.K_profile[species.index("CO2")].mean())
+            plot_equilibrium_curve(K_co2, f"{OUTDIR}/water_equilibrium.png", label="CO2 (water)")
     return {"result": r, "metrics": metrics, "compressor": comp}
 
 

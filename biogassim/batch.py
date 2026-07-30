@@ -94,23 +94,29 @@ def run_batch(feeds, T: float = 298.15, P_bar: float = 1.01325, basis: str = "mo
 
 
 def _upgrade(x: dict, technology: str, flow: float) -> dict:
-    """Roda o upgrading sobre a subcomposição CH4/CO2 (renormalizada)."""
+    """Roda o upgrading do feed. Água usa a composição completa (absorve H2S/NH3
+    além de CO2); MEA usa a subcomposição CH4/CO2 (H2S reativo em amina = roadmap).
+    """
     from . import cases
-    denom = x.get("CH4", 0.0) + x.get("CO2", 0.0)
-    if denom <= 0:
+    if x.get("CH4", 0.0) + x.get("CO2", 0.0) <= 0:
         return {}
-    case = cases.Case(name="batch", technology=str(technology),
-                      feed={"CH4": x["CH4"] / denom, "CO2": x["CO2"] / denom,
-                            "flow_mols": flow})
-    m = cases.run_case(case)["metrics"]
-    inert = round((1.0 - denom) * 100, 2)
-    return {
+    if str(technology) == "water":
+        feed = {**x, "flow_mols": flow}
+    else:
+        denom = x["CH4"] + x["CO2"]
+        feed = {"CH4": x["CH4"] / denom, "CO2": x["CO2"] / denom, "flow_mols": flow}
+    m = cases.run_case(cases.Case(name="batch", technology=str(technology), feed=feed))["metrics"]
+    out = {
         "upg_purity_CH4": m.get("purity_CH4"),
         "upg_recovery_CH4": m.get("recovery_CH4"),
         "upg_CO2_removal": m.get("CO2_removal"),
         "upg_total_kW": m.get("total_kW"),
-        "inert_pct": inert,
+        "inert_pct": round((1.0 - x.get("CH4", 0.0) - x.get("CO2", 0.0)) * 100, 2),
     }
+    for s in ("H2S", "NH3"):
+        if f"{s}_removal" in m:
+            out[f"upg_{s}_removal"] = m[f"{s}_removal"]
+    return out
 
 
 __all__ = ["run_batch"]

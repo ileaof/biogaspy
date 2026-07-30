@@ -4,7 +4,7 @@ Simulador científico de **upgrading de biogás** (remoção de CO₂) em Python
 orientado a objetos e de código aberto. Projeto, análise e comparação de processos de
 purificação para produção de biometano a partir de biogás **47% CH₄ / 53% CO₂**.
 
-> **Status (v0.2):** 159 testes passando. Absorvedor com Newton global e balanço de
+> **Status (v0.2):** 168 testes passando. Absorvedor com Newton global e balanço de
 > energia adiabático; especiação **Kent-Eisenberg** rigorosa (MEA/DEA/MDEA); hidráulica
 > de coluna (flooding de Eckert, perda de carga de Stichlmair); estudos de sensibilidade
 > paramétrica; solventes físicos (Selexol/Rectisol) e MDEA calibrados vs. literatura;
@@ -90,10 +90,14 @@ biogassim batch feeds.csv --tech water --out results.csv   # centenas/milhares d
 
 O `batch` lê um CSV (uma linha por alimentação; colunas = espécies, + opcionais
 `name`, `T_K`, `P_bar`, `basis`, `technology`) e calcula as propriedades de cada
-mistura; com `--tech`, roda também o upgrading sobre a subcomposição CH₄/CO₂ e
-reporta a fração inerte. **Nota:** o solver de absorção modela hoje a remoção de
-CO₂ (CH₄/CO₂); N₂/O₂/H₂/Ar/H₂S entram como diluentes (aparecem nas propriedades,
-não no balanço da coluna). Absorção multicomponente (ex.: H₂S) = roadmap.
+mistura; com `--tech`, roda também o upgrading e reporta a remoção por espécie.
+
+**Absorção de gases ácidos (water scrubbing):** a água agora absorve, além do
+CO₂, o **H₂S** (≈3× mais solúvel — removido preferencialmente) e o **NH₃** (muito
+solúvel), enquanto **N₂/O₂/H₂/Ar/CO** passam praticamente direto. A remoção é
+reportada por espécie (`H2S_removal`, `NH3_removal`, `N2_removal`, …). Nas
+**aminas (MEA)**, a absorção **reativa** de H₂S/NH₃ ainda é roadmap — o modelo de
+amina trata só CH₄/CO₂.
 
 ### Estudos paramétricos e otimização
 
@@ -264,7 +268,7 @@ Validação sistemática contra Aspen Plus/DWSIM é meta futura (ROADMAP).
 
 ```bash
 pip install -e ".[dev,excel,gui]"   # pytest, pytest-cov, ruff, openpyxl, PySide6
-pytest -q                       # roda os 159 testes (GUI é pulada sem Qt instalado)
+pytest -q                       # roda os 168 testes (GUI é pulada sem Qt instalado)
 pytest --cov=biogassim          # com cobertura
 ruff check biogassim tests      # lint
 ruff check --fix biogassim tests   # corrige o que for auto-corrigível

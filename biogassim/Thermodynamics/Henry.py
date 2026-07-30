@@ -59,12 +59,23 @@ _H_CH4_WATER = from_solubility_mol_per_L_atm(0.0014)
 _H_N2_WATER = from_solubility_mol_per_L_atm(0.0006)
 # H2S em água: 0.10 mol/(L·atm)
 _H_H2S_WATER = from_solubility_mol_per_L_atm(0.10)
+# Solubilidades adicionais (Sander 2015, mol/(L·atm) a 25 °C):
+_H_O2_WATER = from_solubility_mol_per_L_atm(0.0013)     # O2 (pouco solúvel)
+_H_H2_WATER = from_solubility_mol_per_L_atm(0.00078)    # H2 (pouco solúvel)
+_H_AR_WATER = from_solubility_mol_per_L_atm(0.0014)     # Ar (inerte)
+_H_CO_WATER = from_solubility_mol_per_L_atm(0.00095)    # CO
+_H_NH3_WATER = from_solubility_mol_per_L_atm(60.0)      # NH3 (muito solúvel)
 
 HENRY_WATER: dict[str, HenryParams] = {
     "CO2": HenryParams(_H_CO2_WATER, 298.15, 20000.0),
     "CH4": HenryParams(_H_CH4_WATER, 298.15, 14000.0),
     "N2":  HenryParams(_H_N2_WATER, 298.15, 10000.0),
     "H2S": HenryParams(_H_H2S_WATER, 298.15, 21000.0),
+    "O2":  HenryParams(_H_O2_WATER, 298.15, 12000.0),
+    "H2":  HenryParams(_H_H2_WATER, 298.15, 4000.0),
+    "Ar":  HenryParams(_H_AR_WATER, 298.15, 12000.0),
+    "CO":  HenryParams(_H_CO_WATER, 298.15, 12000.0),
+    "NH3": HenryParams(_H_NH3_WATER, 298.15, 34000.0),   # dissolução muito exotérmica
 }
 
 

@@ -16,7 +16,11 @@ from dataclasses import asdict, dataclass, field
 
 from .Examples import MEA, WaterScrubbing
 from .Optimization import Economics
-from .Properties import mixture_properties, normalize_composition
+from .Properties import (
+    mixture_properties_general,
+    normalize_composition,
+    normalize_mixture,
+)
 
 TECHNOLOGIES = {"water": WaterScrubbing, "mea": MEA}
 
@@ -51,14 +55,24 @@ def default_case(name: str = "case", technology: str = "water") -> Case:
 
 
 def validate_case(case: Case) -> Case:
-    """Normaliza a composição e valida tecnologia/vazão/operacionais (in-place)."""
+    """Normaliza a composição e valida tecnologia/vazão/operacionais (in-place).
+
+    Aceita feed binário CH4/CO2 (com fração complementar automática) ou
+    multi-espécie (CH4/CO2/N2/H2S/...), normalizado para frações molares.
+    """
     case.technology = _valid_tech(case.technology)
-    x_ch4, x_co2 = normalize_composition(case.feed.get("CH4"), case.feed.get("CO2"))
-    case.feed["CH4"], case.feed["CO2"] = x_ch4, x_co2
     flow = float(case.feed.get("flow_mols", 100.0))
     if flow <= 0:
         raise ValueError("flow_mols deve ser > 0.")
-    case.feed["flow_mols"] = flow
+    gas = {k: float(v) for k, v in case.feed.items() if k != "flow_mols"}
+    if not gas:
+        gas = {"CH4": 0.47, "CO2": 0.53}
+    if set(gas) <= {"CH4", "CO2"}:            # binário: completa a fração faltante
+        x_ch4, x_co2 = normalize_composition(gas.get("CH4"), gas.get("CO2"))
+        gas = {"CH4": x_ch4, "CO2": x_co2}
+    else:                                     # multi-espécie: normaliza tudo
+        gas = normalize_mixture(gas)
+    case.feed = {**gas, "flow_mols": flow}
     op = {**DEFAULT_OPERATING[case.technology], **(case.operating or {})}
     if (op["N_stages"] < 1 or op["P_bar"] <= 0 or op["height_m"] <= 0
             or op["L_over_V"] <= 0):
@@ -96,17 +110,28 @@ def new_project(path: str, name: str | None = None, technology: str = "water") -
 def run_case(case: Case, save: bool = False, outdir: str | None = None) -> dict:
     """Executa um caso (composição variável) e devolve métricas completas."""
     case = validate_case(case)
-    x_ch4, x_co2 = case.feed["CH4"], case.feed["CO2"]
+    gas = {k: v for k, v in case.feed.items() if k != "flow_mols"}
+    x_ch4, x_co2 = gas.get("CH4", 0.0), gas.get("CO2", 0.0)
     op = case.operating
     mod = TECHNOLOGIES[case.technology]
+
+    # água absorve multi-gás (CO2, H2S, NH3, ...); MEA (reativo) fica em CH4/CO2
+    # (absorção reativa de H2S/NH3 em amina = roadmap).
+    if case.technology == "water":
+        composition = dict(gas)
+    else:
+        denom = x_ch4 + x_co2
+        composition = ({"CH4": x_ch4 / denom, "CO2": x_co2 / denom}
+                       if denom > 0 else {"CH4": x_ch4, "CO2": x_co2})
+
     out = mod.run_case(P_bar=op["P_bar"], L_over_V=op["L_over_V"],
                        N_stages=int(op["N_stages"]), height=op["height_m"],
                        flow=case.feed["flow_mols"], save=False,
-                       composition={"CH4": x_ch4, "CO2": x_co2})
+                       composition=composition)
     m = dict(out["metrics"])
 
-    # contexto de composição + propriedades do gás de alimentação
-    props = mixture_properties(ch4=x_ch4, co2=x_co2, T=298.15, P=op["P_bar"] * 1e5)
+    # contexto de composição + propriedades do gás de alimentação (multi-espécie)
+    props = mixture_properties_general(gas, T=298.15, P=op["P_bar"] * 1e5)
     m["x_CH4"] = round(x_ch4, 4)
     m["x_CO2"] = round(x_co2, 4)
     m["feed_LHV_MJ_per_Nm3"] = round(props.LHV_MJ_per_Nm3, 2)

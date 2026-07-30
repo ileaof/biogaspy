@@ -7,6 +7,14 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Adicionado
+- **Absorção de gases ácidos no water scrubbing** (multi-gás): a água agora
+  absorve CO₂, **H₂S** (≈3× mais solúvel, removido preferencialmente) e **NH₃**,
+  enquanto N₂/O₂/H₂/Ar/CO passam praticamente direto. Dados de Henry para
+  O₂/H₂/Ar/CO/NH₃ em água; `WaterScrubbing.run_case` monta o conjunto de espécies
+  a partir da composição do feed e reporta a remoção por espécie
+  (`H2S_removal`, `NH3_removal`, ...); `cases`/`batch` propagam a composição
+  completa para a água. Aminas (MEA) reativas com H₂S/NH₃ = roadmap.
+  `tests/test_acidgas.py` (9).
 - **Estudos paramétricos multivariável + otimização** (`biogassim/studies.py` +
   CLI `sensitivity`/`optimize`): superfícies de resposta 1-D/2-D sobre qualquer
   combinação de composição (`CH4`) e variáveis operacionais (`P_bar`,
