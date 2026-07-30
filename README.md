@@ -14,7 +14,27 @@ purificação para produção de biometano a partir de biogás **47% CH₄ / 53%
 > de gás, simulação em lote e estudos paramétricos/otimização.
 > Water Scrubbing e MEA validados ponta-a-ponta (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
+## Clonar o repositório
+
+Requer [Git](https://git-scm.com/) instalado.
+
+```bash
+git clone https://github.com/ileaof/biogaspy.git
+cd biogaspy
+```
+
+Sem Git? Use **Code → Download ZIP** na [página do repositório](https://github.com/ileaof/biogaspy)
+e extraia. Em seguida, siga a [Instalação](#instalação).
+
 ## Instalação
+
+Recomenda-se um ambiente virtual:
+
+```bash
+python -m venv .venv
+# Windows:        .venv\Scripts\activate
+# Linux/macOS:    source .venv/bin/activate
+```
 
 ```bash
 pip install -e .              # instala o pacote + o comando `biogassim`
