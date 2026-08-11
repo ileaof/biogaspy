@@ -10,6 +10,7 @@ from .Henry import (
     from_solubility_mol_per_L_atm,
     henry_water,
 )
+from .Interactions import KIJ_PR, get_kij, kij_matrix
 from .PengRobinson import PengRobinson
 from .SRK import SRK
 
@@ -21,4 +22,5 @@ __all__ = [
     "fugacity_coefficients", "equilibrium_residual",
     "NRTL",
     "isothermal_flash", "adiabatic_flash", "FlashResult",
+    "KIJ_PR", "get_kij", "kij_matrix",
 ]

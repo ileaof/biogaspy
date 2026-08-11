@@ -107,6 +107,50 @@ def new_project(path: str, name: str | None = None, technology: str = "water") -
     return case_path
 
 
+def _treated_gas_quality(m: dict, result, P_bar: float) -> dict:
+    """Composição e propriedades do gás purificado (topo da coluna) + carregamento
+    líquido de H2S.
+
+    Reporta, a partir do resultado do absorvedor:
+      * frações molares do gás tratado (excluindo H2O) -- CH4, CO2, H2S, ...;
+      * concentração de H2S no gás tratado (mol% e ppm);
+      * propriedades do gás tratado: LHV, HHV, Wobbe, densidade, densidade
+        relativa, Z (Peng-Robinson multicomponente);
+      * carregamento de H2S no líquido: fração molar x_H2S e mol H2S / mol água.
+    """
+    if result is None or result.gas_out is None:
+        return m
+    sp = list(result.gas_out.species)
+    y = result.gas_out.z
+    # composição do gás tratado sem H2O (renormalizada) -- é o que se entrega
+    treated = {s: float(y[i]) for i, s in enumerate(sp) if s != "H2O" and float(y[i]) > 0.0}
+    if treated:
+        tot = sum(treated.values())
+        treated = {s: v / tot for s, v in treated.items()}
+        tp = mixture_properties_general(treated, T=298.15, P=P_bar * 1e5)
+        m["treated_CH4_pct"] = round(treated.get("CH4", 0.0) * 100, 3)
+        m["treated_CO2_pct"] = round(treated.get("CO2", 0.0) * 100, 3)
+        h2s_t = treated.get("H2S", 0.0)
+        m["treated_H2S_pct"] = round(h2s_t * 100, 4)
+        m["treated_H2S_ppm"] = round(h2s_t * 1e6, 1)
+        m["treated_LHV_MJ_per_Nm3"] = round(tp.LHV_MJ_per_Nm3, 2)
+        m["treated_HHV_MJ_per_Nm3"] = round(tp.HHV_MJ_per_Nm3, 2)
+        m["treated_wobbe_MJ_per_Nm3"] = round(tp.wobbe_index_MJ_per_Nm3, 2)
+        m["treated_density_kg_per_Nm3"] = round(tp.density_normal, 4)
+        m["treated_specific_gravity"] = round(tp.specific_gravity, 4)
+        m["treated_Z"] = round(tp.Z, 5)
+    # carregamento de H2S na fase líquida (saída de fundo)
+    if result.liquid_out is not None and "H2S" in sp and "H2O" in sp:
+        xl = result.liquid_out.z
+        i_h2s = sp.index("H2S")
+        i_h2o = sp.index("H2O")
+        x_h2s = float(xl[i_h2s])
+        x_h2o = max(float(xl[i_h2o]), 1e-12)
+        m["liquid_H2S_molfrac"] = round(x_h2s, 6)
+        m["liquid_H2S_loading_mol_per_mol"] = round(x_h2s / x_h2o, 5)
+    return m
+
+
 def run_case(case: Case, save: bool = False, outdir: str | None = None) -> dict:
     """Executa um caso (composição variável) e devolve métricas completas."""
     case = validate_case(case)
@@ -134,8 +178,16 @@ def run_case(case: Case, save: bool = False, outdir: str | None = None) -> dict:
     props = mixture_properties_general(gas, T=298.15, P=op["P_bar"] * 1e5)
     m["x_CH4"] = round(x_ch4, 4)
     m["x_CO2"] = round(x_co2, 4)
+    if "H2S" in gas:
+        m["x_H2S"] = round(gas["H2S"], 5)
     m["feed_LHV_MJ_per_Nm3"] = round(props.LHV_MJ_per_Nm3, 2)
     m["feed_wobbe_MJ_per_Nm3"] = round(props.wobbe_index_MJ_per_Nm3, 2)
+
+    # ---- qualidade do gás purificado (treated) + carregamento líquido de H2S ---- #
+    # o absorvedor resolve todas as espécies; reportamos a composição real do
+    # gás de topo (excluindo H2O) e suas propriedades (LHV/HHV/Wobbe/densidade/SG).
+    result = out["result"]
+    m = _treated_gas_quality(m, result, op["P_bar"])
 
     # consumo de solvente / água
     solvent_flow = op["L_over_V"] * case.feed["flow_mols"]           # mol/s
@@ -144,7 +196,6 @@ def run_case(case: Case, save: bool = False, outdir: str | None = None) -> dict:
         m["water_m3_per_h"] = round(solvent_flow * 0.018 / 1000.0 * 3600.0, 2)
 
     # economia
-    result = out["result"]
     bio_nm3h = result.gas_out.flow * 0.0224 * 3600 if result.gas_out else 0.0
     co2_kg_h = case.feed["flow_mols"] * x_co2 * (m.get("CO2_removal", 0) / 100.0) * 0.044 * 3600
     econ = Economics.from_process(total_kw=m.get("total_kW", 0.0),
@@ -166,6 +217,8 @@ _SWEEP_KEYS = ["purity_CH4", "recovery_CH4", "CO2_removal", "methane_loss",
                "specific_kWh_per_Nm3", "diameter_m", "height_m",
                "pressure_drop_Pa", "flooding_pct", "specific_cost_usd_per_Nm3",
                "converged"]
+_H2S_SWEEP_KEYS = _SWEEP_KEYS + ["H2S_removal", "treated_H2S_pct", "treated_H2S_ppm",
+                                 "treated_wobbe_MJ_per_Nm3", "liquid_H2S_loading_mol_per_mol"]
 
 
 def frange(start: float, stop: float, step: float) -> list[float]:
@@ -200,8 +253,48 @@ def sweep_composition(technology: str = "water", ch4_values=None,
     return rows
 
 
+def sweep_h2s(technology: str = "water", h2s_values=None,
+               ch4_co2_ratio: float = 0.47, operating: dict | None = None,
+               flow: float = 100.0, name: str = "sweep_h2s") -> list[dict]:
+    """Varre a fração de H2S no feed (0..5 mol% típico) mantendo a razão
+    CH4:CO2 constante.
+
+    ``ch4_co2_ratio`` é a fração de CH4 *dentro da parcela (1 - H2S)* (ex.: 0.47
+    significa CH4 = 47% e CO2 = 53% da parte não-H2S). Para cada H2S = h::
+
+        CH4 = (1 - h) * r,  CO2 = (1 - h) * (1 - r),  H2S = h
+
+    Coleta remoção/efficiência de H2S, recuperação de CH4, remoção de CO2,
+    consumo de água/energia, altura e qualidade do gás tratado (§13).
+    """
+    technology = _valid_tech(technology)
+    if technology != "water":
+        raise ValueError("sweep_h2s disponível apenas para 'water' "
+                         "(absorção reativa de H2S em amina = roadmap).")
+    if h2s_values is None:
+        h2s_values = frange(0.0, 0.05, 0.005)
+    r = float(ch4_co2_ratio)
+    rows = []
+    for h in h2s_values:
+        h = max(min(float(h), 1.0), 0.0)
+        feed = {"CH4": (1.0 - h) * r, "CO2": (1.0 - h) * (1.0 - r),
+                "H2S": h, "flow_mols": flow}
+        case = Case(name=name, technology=technology, feed=feed,
+                    operating=dict(operating) if operating else {})
+        row = {"feed_H2S_pct": round(h * 100, 3)}
+        try:
+            m = run_case(case)["metrics"]
+            row.update({k: m.get(k) for k in _H2S_SWEEP_KEYS})
+        except Exception as exc:
+            row.update({k: None for k in _H2S_SWEEP_KEYS})
+            row["converged"] = False
+            row["error"] = str(exc)[:80]
+        rows.append(row)
+    return rows
+
+
 __all__ = [
     "Case", "TECHNOLOGIES", "DEFAULT_OPERATING",
     "default_case", "validate_case", "save_case", "load_case", "new_project",
-    "run_case", "sweep_composition", "frange",
+    "run_case", "sweep_composition", "sweep_h2s", "frange",
 ]

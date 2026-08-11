@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from ..Properties.components import get as get_comp
 from ..Properties.Mixtures import molar_weight
 from ..Thermodynamics.Flash import isothermal_flash
+from ..Thermodynamics.Interactions import kij_matrix
 from ..Thermodynamics.PengRobinson import PengRobinson
 from .base import Stream, UnitResult
 
@@ -54,7 +55,7 @@ class FlashResult(UnitResult):
 def flash_drum(stream: Stream, T: float, P: float) -> FlashResult:
     """Flash isotérmico TP usando EOS PR."""
     comps = [get_comp(s) for s in stream.species]
-    eos = PengRobinson(comps)
+    eos = PengRobinson(comps, kij=kij_matrix(list(stream.species)))
     fr = isothermal_flash(eos, stream.z, T, P)
     vapor = Stream(list(stream.species), float(stream.flow * fr.beta), fr.y,
                    float(T), float(P), phase="vapor")

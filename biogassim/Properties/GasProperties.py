@@ -21,6 +21,7 @@ from dataclasses import asdict, dataclass
 
 from ..Core.constants import R_J_MOL_K
 from ..Thermodynamics import PengRobinson
+from ..Thermodynamics.Interactions import kij_matrix
 from .components import get as get_component
 
 # --- constantes de referência --------------------------------------------- #
@@ -111,7 +112,8 @@ def mixture_molar_mass(x_ch4: float, x_co2: float) -> float:
 
 def compressibility(x_ch4: float, x_co2: float, T: float, P: float) -> float:
     """Fator de compressibilidade Z da mistura (Peng-Robinson, fase vapor)."""
-    eos = PengRobinson([get_component("CH4"), get_component("CO2")])
+    species = ["CH4", "CO2"]
+    eos = PengRobinson([get_component(s) for s in species], kij=kij_matrix(species))
     return float(eos.Z_and_phi(T, P, [x_ch4, x_co2], phase="vapor").Z)
 
 
@@ -228,7 +230,8 @@ def mixture_properties_general(comp: dict, T: float = 298.15, P: float = P_NORMA
     frac = [x[s] for s in species]
 
     mm = sum(x[s] * get_component(s).MM for s in species)          # kg/mol
-    Z = float(PengRobinson(comps).Z_and_phi(T, P, frac, phase="vapor").Z)
+    Z = float(PengRobinson(comps, kij=kij_matrix(species))
+              .Z_and_phi(T, P, frac, phase="vapor").Z)
     density = P * mm / (Z * R_J_MOL_K * T)
     density_normal = mm * MOL_PER_NM3
 

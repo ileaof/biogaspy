@@ -88,10 +88,27 @@ def _parse_assignments(pairs):
 _OP_KEYS = {"P_bar", "L_over_V", "N_stages", "height_m"}
 
 
+def _known_species():
+    """Conjunto de espécies válidas para composição (banco de componentes)."""
+    from .Properties.components import all_components
+    return set(all_components())
+
+
 def _apply_kv(case, kv):
+    """Aplica pares CHAVE=VALOR ao caso.
+
+    Espécies de gás (CH4, CO2, H2S, N2, ...) entram em ``case.feed``; chaves
+    operacionais em ``case.operating``; ``flow``/``flow_mols`` na vazão; ``tech``
+    na tecnologia. Para feed binário CH4/CO2 mantém a fração complementar
+    automática; para feed multi-espécie a normalização é feita por
+    ``cases.validate_case``.
+    """
+    species = _known_species()
+    gas_keys = []
     for k, v in kv.items():
-        if k in ("CH4", "CO2"):
+        if k in species:
             case.feed[k] = float(v)
+            gas_keys.append(k)
         elif k in ("flow", "flow_mols"):
             case.feed["flow_mols"] = float(v)
         elif k in _OP_KEYS:
@@ -99,12 +116,15 @@ def _apply_kv(case, kv):
         elif k in ("tech", "technology"):
             case.technology = v.lower()
         else:
-            raise SystemExit(f"Chave desconhecida: '{k}'.")
-    # fração complementar automática (editar CH4 atualiza CO2 e vice-versa)
-    if "CH4" in kv and "CO2" not in kv:
-        case.feed["CO2"] = 1.0 - float(kv["CH4"])
-    elif "CO2" in kv and "CH4" not in kv:
-        case.feed["CH4"] = 1.0 - float(kv["CO2"])
+            raise SystemExit(f"Chave desconhecida: '{k}'. "
+                             f"Espécies válidas: {sorted(species)}.")
+    # fração complementar automática SOMENTE para feed binário CH4/CO2
+    gas_set = {k for k in case.feed if k != "flow_mols"}
+    if gas_set <= {"CH4", "CO2"}:
+        if "CH4" in kv and "CO2" not in kv:
+            case.feed["CO2"] = 1.0 - float(kv["CH4"])
+        elif "CO2" in kv and "CH4" not in kv:
+            case.feed["CH4"] = 1.0 - float(kv["CO2"])
     return case
 
 
@@ -117,11 +137,16 @@ def _cmd_new(args):
 
 
 def _cmd_run(args):
-    from . import cases
+    from . import cases, dashboard, safety
+    if args.max_h2s_ppm is not None:
+        safety.set_max_h2s_treated_ppm(args.max_h2s_ppm)
     case = cases.load_case(args.case)
     out = cases.run_case(case, save=args.save,
                          outdir=args.outdir or os.path.dirname(args.case) or ".")
-    _print(out["metrics"], f"RUN -- {case.name} [{case.technology}]")
+    m = out["metrics"]
+    print(dashboard.format_dashboard(m))
+    print(f"\nRUN -- {case.name} [{case.technology}]"
+          f"  convergiu={m.get('converged')} iter={m.get('iterations', '-')}")
 
 
 def _cmd_set(args):
@@ -130,9 +155,14 @@ def _cmd_set(args):
     _apply_kv(case, _parse_assignments(args.assignments))
     cases.validate_case(case)
     cases.save_case(case, args.case)
+    gas = {k: v for k, v in case.feed.items() if k != "flow_mols"}
+    total = sum(gas.values())
     print(f"Caso salvo em '{args.case}'")
-    print(f"  Composição : CH4={case.feed['CH4']:.4f}  CO2={case.feed['CO2']:.4f}"
-          f"  (soma={case.feed['CH4'] + case.feed['CO2']:.4f})")
+    print("  Composicao da alimentacao (normalizada para 100%):")
+    for s, v in gas.items():
+        print(f"    {s:<5} {v*100:7.3f} %")
+    print(f"    {'TOTAL':<5} {total*100:7.3f} %"
+          f"  {'[OK]' if abs(total - 1.0) < 1e-6 else '[AVISO: soma != 100%]'}")
     print(f"  Tecnologia : {case.technology}")
     print(f"  Operacional: {case.operating}")
 
@@ -186,27 +216,52 @@ def _cmd_sweep(args):
     from . import cases
     from .Export import export_csv, export_json
     kv = _parse_assignments([args.spec])
-    if "CH4" not in kv or ":" not in kv["CH4"]:
-        raise SystemExit("Uso: biogassim sweep CH4=inicio:fim:passo (ex.: CH4=0.20:0.95:0.05).")
-    a, b, step = (float(x) for x in kv["CH4"].split(":"))
-    operating = None
-    if args.case and os.path.exists(args.case):
-        operating = cases.load_case(args.case).operating
-    rows = cases.sweep_composition(args.tech, cases.frange(a, b, step),
-                                   operating=operating, flow=args.flow)
-    print("=" * 78)
-    print(f"VARREDURA DE COMPOSIÇÃO -- {args.tech} (CH4 {a:.0%}..{b:.0%})")
-    print("=" * 78)
-    hdr = f"{'CH4%':>6}{'Pur%':>8}{'Rec%':>8}{'CO2r%':>8}{'kW':>9}{'kWh/Nm3':>9}{'D(m)':>7}{'Flood%':>8}"
-    print(hdr)
-    print("-" * 78)
-    for r in rows:
-        def f(v, w, dec=2):
-            return f"{v:>{w}.{dec}f}" if isinstance(v, (int, float)) else f"{'-':>{w}}"
-        print(f"{f(r['feed_CH4_pct'], 6, 1)}{f(r['purity_CH4'], 8)}{f(r['recovery_CH4'], 8)}"
-              f"{f(r['CO2_removal'], 8)}{f(r['total_kW'], 9, 1)}{f(r['specific_kWh_per_Nm3'], 9, 3)}"
-              f"{f(r['diameter_m'], 7)}{f(r['flooding_pct'], 8, 1)}")
-    print("-" * 78)
+    # roteia entre varredura de CH4 (composição) e varredura de H2S (contaminante)
+    if "H2S" in kv and ":" in kv["H2S"]:
+        a, b, step = (float(x) for x in kv["H2S"].split(":"))
+        operating = None
+        if args.case and os.path.exists(args.case):
+            operating = cases.load_case(args.case).operating
+        rows = cases.sweep_h2s(args.tech, cases.frange(a, b, step),
+                               operating=operating, flow=args.flow)
+        print("=" * 90)
+        print(f"VARREDURA DE H2S -- {args.tech} (H2S {a*100:.1f}..{b*100:.1f} mol%)")
+        print("=" * 90)
+        hdr = (f"{'H2S%':>6}{'H2Srem%':>8}{'Pur%':>8}{'Rec%':>8}{'CO2r%':>8}"
+               f"{'H2St_ppm':>9}{'kW':>8}{'kWh/Nm3':>9}{'Water':>8}")
+        print(hdr)
+        print("-" * 90)
+        for r in rows:
+            def f(v, w, dec=2):
+                return f"{v:>{w}.{dec}f}" if isinstance(v, (int, float)) else f"{'-':>{w}}"
+            print(f"{f(r['feed_H2S_pct'], 6, 2)}{f(r.get('H2S_removal'), 8)}"
+                  f"{f(r['purity_CH4'], 8)}{f(r['recovery_CH4'], 8)}{f(r['CO2_removal'], 8)}"
+                  f"{f(r.get('treated_H2S_ppm'), 9, 1)}{f(r['total_kW'], 8, 1)}"
+                  f"{f(r['specific_kWh_per_Nm3'], 9, 3)}{f(r['water_m3_per_h'], 8, 1)}")
+        print("-" * 90)
+    elif "CH4" in kv and ":" in kv["CH4"]:
+        a, b, step = (float(x) for x in kv["CH4"].split(":"))
+        operating = None
+        if args.case and os.path.exists(args.case):
+            operating = cases.load_case(args.case).operating
+        rows = cases.sweep_composition(args.tech, cases.frange(a, b, step),
+                                       operating=operating, flow=args.flow)
+        print("=" * 78)
+        print(f"VARREDURA DE COMPOSICAO -- {args.tech} (CH4 {a:.0%}..{b:.0%})")
+        print("=" * 78)
+        hdr = f"{'CH4%':>6}{'Pur%':>8}{'Rec%':>8}{'CO2r%':>8}{'kW':>9}{'kWh/Nm3':>9}{'D(m)':>7}{'Flood%':>8}"
+        print(hdr)
+        print("-" * 78)
+        for r in rows:
+            def f(v, w, dec=2):
+                return f"{v:>{w}.{dec}f}" if isinstance(v, (int, float)) else f"{'-':>{w}}"
+            print(f"{f(r['feed_CH4_pct'], 6, 1)}{f(r['purity_CH4'], 8)}{f(r['recovery_CH4'], 8)}"
+                  f"{f(r['CO2_removal'], 8)}{f(r['total_kW'], 9, 1)}{f(r['specific_kWh_per_Nm3'], 9, 3)}"
+                  f"{f(r['diameter_m'], 7)}{f(r['flooding_pct'], 8, 1)}")
+        print("-" * 78)
+    else:
+        raise SystemExit("Uso: biogassim sweep CH4=inicio:fim:passo | H2S=inicio:fim:passo "
+                         "(ex.: CH4=0.20:0.95:0.05, H2S=0:0.05:0.005).")
     if args.out:
         if args.out.endswith(".json"):
             export_json({"sweep": rows}, args.out)
@@ -323,14 +378,16 @@ def _cmd_gui(args):
 
 
 def _cmd_report(args):
-    from . import cases
+    from . import cases, dashboard, safety
     from .Export import export_html
+    if args.max_h2s_ppm is not None:
+        safety.set_max_h2s_treated_ppm(args.max_h2s_ppm)
     case = cases.load_case(args.case) if os.path.exists(args.case) else cases.default_case()
     m = cases.run_case(case)["metrics"]
     out = args.out or f"{case.name}_report.html"
     export_html([m], out, title=f"BioGasSim -- {case.name}")
-    _print(m, f"REPORT -- {case.name} [{case.technology}]")
-    print(f"Relatório HTML: {out}")
+    print(dashboard.format_dashboard(m))
+    print(f"Relatorio HTML: {out}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -384,6 +441,8 @@ def build_parser() -> argparse.ArgumentParser:
     pr.add_argument("case", help="Arquivo do caso (JSON)")
     pr.add_argument("--save", action="store_true", help="Salvar métricas em results/")
     pr.add_argument("--outdir", default=None, help="Diretório de saída")
+    pr.add_argument("--max-h2s-ppm", type=float, default=None,
+                    help="Limite máximo admissível de H2S no gás tratado (ppmv)")
     pr.set_defaults(func=_cmd_run)
 
     ps = sub.add_parser("set", help="Modificar composição/condições (ex.: CH4=0.47 CO2=0.53)")
@@ -412,8 +471,9 @@ def build_parser() -> argparse.ArgumentParser:
     pb.add_argument("--flow", type=float, default=100.0, help="Vazão p/ upgrading (mol/s)")
     pb.set_defaults(func=_cmd_batch)
 
-    psw = sub.add_parser("sweep", help="Varredura de composição (ex.: CH4=0.20:0.95:0.05)")
-    psw.add_argument("spec", help="CH4=inicio:fim:passo")
+    psw = sub.add_parser("sweep",
+                         help="Varredura de composição (CH4) ou de contaminante (H2S)")
+    psw.add_argument("spec", help="CH4=inicio:fim:passo  ou  H2S=inicio:fim:passo")
     psw.add_argument("--tech", default="water", choices=["water", "mea"])
     psw.add_argument("--flow", type=float, default=100.0, help="Vazão do biogás (mol/s)")
     psw.add_argument("--case", default=None, help="Caso p/ herdar condições operacionais")
@@ -446,6 +506,8 @@ def build_parser() -> argparse.ArgumentParser:
     prep = sub.add_parser("report", help="Executar um caso e gerar relatório HTML")
     prep.add_argument("--case", default="case.json", help="Arquivo do caso (JSON)")
     prep.add_argument("--out", default=None, help="Arquivo HTML de saída")
+    prep.add_argument("--max-h2s-ppm", type=float, default=None,
+                      help="Limite máximo admissível de H2S no gás tratado (ppmv)")
     prep.set_defaults(func=_cmd_report)
 
     pg = sub.add_parser("gui", help="Abrir a interface gráfica (PySide6/PyQt5)")

@@ -76,7 +76,7 @@ a especificação completa (nível Aspen/DWSIM).
 
 ## Médio prazo (tecnologias)
 
-- [~] **Composição multicomponente**: *feito* — alimentação arbitrária
+- [x] **Composição multicomponente**: *feito* — alimentação arbitrária
       (CH₄/CO₂/N₂/O₂/H₂/H₂O/H₂S/NH₃/CO/Ar) com propriedades de mistura (MM, Z,
       densidade, LHV/HHV, Wobbe, SG) em qualquer base (molar/mássica/volumétrica/
       vazão), CLI `props`/`batch` e `biogassim/batch.py`. **Absorção multi-gás no
@@ -86,6 +86,16 @@ a especificação completa (nível Aspen/DWSIM).
       aminas** (MEA/DEA/MDEA) — precisa da especiação ácido-base do H₂S/NH₃ na
       amina (hoje o modelo de amina trata só CO₂); e H₂S nos solventes físicos
       (Selexol/Rectisol já têm Henry de H₂S — falta ligar no runner).
+- [x] **H₂S como primeira extensão do binário CH₄–CO₂**: H₂S integrado
+      ponta-a-ponta — **kij não-nulos** para Peng-Robinson
+      (`Thermodynamics/Interactions.py`, CH₄–CO₂/CH₄–H₂S/CO₂–H₂S) injetados em
+      todas as instanciações de PR; **qualidade do gás tratado** (LHV/HHV/Wobbe/
+      densidade/SG + H₂S residual em mol%/ppm + carregamento líquido de H₂S);
+      **segurança** (`safety.py`: avisos feed/tratado/líquido, limite de H₂S
+      configurável, `engine_suitable`); **varredura de H₂S** (`sweep_h2s` +
+      CLI `sweep H2S=...`); **dashboard** feed/upgraded/performance/safety
+      (`dashboard.py`); **GUI ternária** CH₄/CO₂/H₂S com banner de segurança.
+      `tests/test_h2s_ternary.py` (29); regressão H₂S=0 reproduz o binário (1e-9).
 - [ ] **PSA dinâmico**: ciclo Skarstrom completo (pressurização, adsorção, blowdown,
       purga), múltiplos leitos, integração temporal, balanço de energia do leito.
 - [x] **Membranas multi-estágio**: modelo de mistura completa que **resolve** o
@@ -111,11 +121,13 @@ a especificação completa (nível Aspen/DWSIM).
 ## Interface e exportação
 
 - [x] **GUI (Milestone 1)**: janela desktop (shim PySide6/PyQt5) com editor
-      interativo de composição CH₄–CO₂ (spin/slider/presets, normalização e
-      fração complementar em tempo real, leituras de propriedades), painel
-      operacional, solver + monitor de convergência, dashboard e gráfico de
-      desempenho vs. composição. `biogassim gui`; `biogassim/gui/`;
-      `tests/test_gui.py` (5, headless). *Futuro:* execução assíncrona
+      interativo de composição **ternária CH₄/CO₂/H₂S** (spin/slider/presets,
+      normalização que redistribui o restante entre os outros dois, leituras de
+      propriedades com H₂S), painel operacional, **banner de segurança de H₂S**
+      (limite configurável + adequação para motor), solver + monitor de
+      convergência, dashboard (remoção de H₂S e H₂S no gás tratado) e gráfico de
+      desempenho vs H₂S. `biogassim gui`; `biogassim/gui/`;
+      `tests/test_gui.py` (7, headless). *Futuro:* execução assíncrona
       (barras de progresso), comparação lado a lado, perfis de coluna ao vivo.
 - [ ] **Export PDF** (reportlab), **Tecplot** (.plt), **VTK** (malha estruturada
       da coluna para visualização 3D).

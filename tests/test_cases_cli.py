@@ -96,7 +96,10 @@ def test_cli_set_complementary_and_run(tmp_path, capsys):
     c = cases.load_case(case)
     assert c.feed["CO2"] == pytest.approx(0.4)         # fração complementar automática
     main(["run", case])
-    assert "recovery_CH4" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    # dashboard novo (formato feed/upgraded/performance) mostra recuperação de CH4
+    assert "CH4 Recovery" in out
+    assert "UPGRADED GAS" in out
 
 
 def test_cli_sweep_exports_csv(tmp_path):

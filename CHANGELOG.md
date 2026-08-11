@@ -7,6 +7,42 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 ## [Não lançado]
 
 ### Adicionado
+- **H₂S como primeira extensão do modelo binário CH₄–CO₂.** H₂S integrado
+  ponta-a-ponta como componente de alimentação (CH₄ + CO₂ + H₂S = 100%),
+  sem liberar outras espécies além das já suportadas:
+  - **Banco de parâmetros de interação binária (kij)** não-nulos para
+    Peng-Robinson (`Thermodynamics/Interactions.py`): CH₄–CO₂≈0,092,
+    CH₄–H₂S≈0,083, CO₂–H₂S≈0,097 (+ demais pares). `kij_matrix(species)` injetada
+    em todas as instanciações de PR (`GasProperties`, `Auxiliaries`); antes tudo
+    era zero. O banco é editável/atualizável em um único local.
+  - **Qualidade do gás tratado** (`cases._treated_gas_quality`): composição real
+    do gás de topo (CH₄/CO₂/H₂S), LHV/HHV/Wobbe/densidade/densidade relativa/Z
+    via PR multicomponente, **concentração residual de H₂S** (mol% e ppm) e
+    **carregamento de H₂S na fase líquida** (mol H₂S/mol solvente).
+  - **Segurança H₂S** (`biogassim/safety.py`): avisos de toxicidade/corosividade
+    distinguindo feed / gás tratado / fase líquida; **limite máximo admissível
+    de H₂S no gás tratado configurável** (default 10 ppm; motor/gasoduto);
+    decisão explícita `engine_suitable` — o simulador **nunca** classifica
+    silenciosamente gás com H₂S significativo como adequado para motor.
+  - **Varredura paramétrica de H₂S** (`cases.sweep_h2s` + CLI `sweep H2S=...`):
+    varia H₂S de 0 a 5 mol% mantendo a razão CH₄:CO₂, coletando remoção de H₂S,
+    recuperação de CH₄, remoção de CO₂, consumo de água/energia, altura e
+    qualidade do gás tratado.
+  - **Dashboard de resultados** (`biogassim/dashboard.py`): saída no formato
+    feed / upgraded / performance / gas quality / safety, reusada por `run` e
+    `report` na CLI.
+  - **CLI**: `set` aceita H₂S (e qualquer espécie cadastrada) com verificação
+    do total = 100%; `run`/`report` ganham `--max-h2s-ppm`.
+  - **GUI**: editor de composição **ternário** CH₄/CO₂/H₂S (spin + slider +
+    presets, normalização que redistribui o restante preservando a razão dos
+    outros dois), banner de segurança de H₂S, tabela de resultados com remoção
+    de H₂S e H₂S no gás tratado, e mapa de desempenho vs H₂S.
+  - **Testes** (`tests/test_h2s_ternary.py`, 29): kij não-nulos, normalização
+    ternária, solubilidade H₂S, qualidade do gás tratado, segurança, dashboard,
+    CLI `set`/`sweep` H₂S, e **regressão §17** — H₂S=0 reproduz o binário dentro
+    de 1e-9. Total: 199 testes.
+
+### Adicionado
 - **Absorção de gases ácidos no water scrubbing** (multi-gás): a água agora
   absorve CO₂, **H₂S** (≈3× mais solúvel, removido preferencialmente) e **NH₃**,
   enquanto N₂/O₂/H₂/Ar/CO passam praticamente direto. Dados de Henry para

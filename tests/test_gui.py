@@ -29,34 +29,55 @@ def test_window_constructs_with_live_readouts(app):
     assert w._readout_labels["wobbe_index_MJ_per_Nm3"].text() != "-"
 
 
-def test_composition_normalizes_and_fills_complement(app):
+def test_composition_redistributes_between_other_two(app):
     w = MainWindow()
-    w._set_composition(0.60)
-    assert w.ch4_spin.value() == pytest.approx(60.0)
-    assert w.co2_spin.value() == pytest.approx(40.0)         # complemento automático
-    assert w.ch4_slider.value() == 600
-    # editar CO2 atualiza CH4
-    w.co2_spin.setValue(30.0)
-    assert w._ch4 == pytest.approx(0.70)
+    w._set_composition({"CH4": 0.60, "CO2": 0.40, "H2S": 0.0})
+    assert w.spins["CH4"].value() == pytest.approx(60.0)
+    assert w.spins["CO2"].value() == pytest.approx(40.0)
+    assert w.spins["H2S"].value() == pytest.approx(0.0)
+    # editar H2S para 10% redistribui o restante (90%) preservando CH4:CO2 (60:40)
+    w._set_component("H2S", 0.10)
+    assert w._comp["H2S"] == pytest.approx(0.10)
+    assert w._comp["CH4"] == pytest.approx(0.60 * 0.90, abs=1e-6)
+    assert w._comp["CO2"] == pytest.approx(0.40 * 0.90, abs=1e-6)
+    # soma fecha em 1
+    assert sum(w._comp.values()) == pytest.approx(1.0)
 
 
 def test_preset_updates_composition(app):
     w = MainWindow()
-    w._on_preset("Metano puro (100 / 0)")
-    assert w._ch4 == pytest.approx(1.0)
+    w._on_preset("Metano puro (100 / 0 / 0)")
+    assert w._comp["CH4"] == pytest.approx(1.0)
+    assert w._comp["H2S"] == pytest.approx(0.0)
+
+
+def test_h2s_preset_shows_safety_warning(app):
+    w = MainWindow()
+    w._on_preset("Biogás c/ 1% H2S (46 / 53 / 1)")
+    assert w._comp["H2S"] == pytest.approx(0.01)
+    assert "H2S" in w.safety_lbl.text() or "H₂S" in w.safety_lbl.text()
 
 
 def test_run_populates_results_table(app):
     w = MainWindow()
-    w._set_composition(0.50)
+    w._set_composition({"CH4": 0.50, "CO2": 0.50, "H2S": 0.0})
     metrics = w._on_run()
     assert metrics is not None and metrics["converged"]
     assert w.table.rowCount() > 0
     assert "Convergiu: True" in w.status.text()
 
 
+def test_run_with_h2s_reports_removal(app):
+    w = MainWindow()
+    w._set_composition({"CH4": 0.46, "CO2": 0.53, "H2S": 0.01})
+    metrics = w._on_run()
+    assert metrics is not None and metrics["converged"]
+    assert metrics.get("H2S_removal") is not None
+
+
 def test_sweep_runs_and_reports(app):
     w = MainWindow()
     rows = w._on_sweep()
-    assert rows and any(r["converged"] for r in rows)
+    assert rows and any(r.get("converged") for r in rows)
     assert "convergiram" in w.status.text()
+    assert "feed_H2S_pct" in rows[0]

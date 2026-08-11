@@ -1,22 +1,27 @@
-"""Janela principal da GUI do BioGasSim (Milestone 1 -- CH4-CO2).
+"""Janela principal da GUI do BioGasSim (composição CH4-CO2-H2S).
 
 Painéis:
-  * Composição da alimentação -- frações CH4/CO2 editáveis (spin + slider +
-    presets), normalização automática, fração complementar em tempo real e
+  * Composição da alimentação -- frações CH4/CO2/H2S editáveis (spin + slider +
+    presets), normalização automática (editar um componente redistribui o
+    restante entre os outros dois preservando a razão atual), validação e
     leitura contínua das propriedades da mistura (MM, Z, densidade, LHV, HHV,
     Índice de Wobbe, densidade relativa).
+  * Aviso de segurança -- H2S é tóxico/corosivo; banner exibido sempre que H2S
+    estiver presente na alimentação.
   * Condições operacionais -- tecnologia, pressão, L/V, estágios, altura.
   * Controles do solver + monitor de convergência.
-  * Dashboard de resultados (tabela de métricas).
-  * Gráfico interativo (varredura de composição: recuperação/pureza vs CH4%).
+  * Dashboard de resultados (tabela de métricas, incluindo remoção de H2S e
+    concentração de H2S no gás tratado).
+  * Gráfico interativo (varredura de H2S: remoção/recuperação vs H2S%).
 
 Toda a lógica de processo reusa ``biogassim.cases`` e
-``biogassim.Properties.mixture_properties``; a GUI é só a camada de interação.
+``biogassim.Properties.mixture_properties_general``; a GUI é só a camada de
+interação.
 """
 from __future__ import annotations
 
-from .. import cases
-from ..Properties import mixture_properties
+from .. import cases, safety
+from ..Properties import mixture_properties_general
 from .qt import Qt, QtWidgets
 
 # Canvas matplotlib (opcional -- degrada com elegância se indisponível)
@@ -27,11 +32,14 @@ try:
 except Exception:  # pragma: no cover - depende do backend
     _HAS_PLOT = False
 
+# Presets como (rótulo, {CH4, CO2, H2S}) -- frações molares.
 PRESETS = {
-    "Biogás (47 / 53)": 0.47,
-    "Digestor anaeróbio (60 / 40)": 0.60,
-    "Aterro / landfill (50 / 50)": 0.50,
-    "Metano puro (100 / 0)": 1.00,
+    "Biogás (47 / 53 / 0)":            {"CH4": 0.47, "CO2": 0.53, "H2S": 0.00},
+    "Biogás c/ 1% H2S (46 / 53 / 1)":   {"CH4": 0.46, "CO2": 0.53, "H2S": 0.01},
+    "Biogás c/ 2% H2S (45 / 53 / 2)":   {"CH4": 0.45, "CO2": 0.53, "H2S": 0.02},
+    "Biogás c/ 5% H2S (40 / 55 / 5)":   {"CH4": 0.40, "CO2": 0.55, "H2S": 0.05},
+    "Digestor anaeróbio (60 / 40 / 0)": {"CH4": 0.60, "CO2": 0.40, "H2S": 0.00},
+    "Metano puro (100 / 0 / 0)":         {"CH4": 1.00, "CO2": 0.00, "H2S": 0.00},
     "Personalizado": None,
 }
 
@@ -46,29 +54,35 @@ _READOUTS = [
     ("specific_gravity", "Densidade relativa", "(ar=1)", "{:.4f}"),
 ]
 
+# Métricas mostradas na tabela de resultados (rótulo, chave, unidade).
 _RESULT_ROWS = [
-    ("purity_CH4", "Pureza CH₄", "%"),
-    ("recovery_CH4", "Recuperação CH₄", "%"),
-    ("CO2_removal", "Remoção CO₂", "%"),
-    ("methane_loss", "Perda de metano", "%"),
-    ("solvent_flow_mols", "Vazão de solvente", "mol/s"),
-    ("water_m3_per_h", "Consumo de água", "m³/h"),
-    ("total_kW", "Energia total", "kW"),
-    ("specific_kWh_per_Nm3", "Consumo específico", "kWh/Nm³"),
-    ("diameter_m", "Diâmetro da coluna", "m"),
-    ("height_m", "Altura da coluna", "m"),
-    ("pressure_drop_Pa", "Perda de carga", "Pa/m·total"),
-    ("flooding_pct", "Margem de inundação", "% flood"),
-    ("specific_cost_usd_per_Nm3", "Custo específico", "USD/Nm³"),
+    ("Pureza CH₄", "purity_CH4", "%"),
+    ("Recuperação CH₄", "recovery_CH4", "%"),
+    ("Remoção CO₂", "CO2_removal", "%"),
+    ("Remoção H₂S", "H2S_removal", "%"),
+    ("H₂S no gás tratado", "treated_H2S_ppm", "ppm"),
+    ("Perda de metano", "methane_loss", "%"),
+    ("Vazão de solvente", "solvent_flow_mols", "mol/s"),
+    ("Consumo de água", "water_m3_per_h", "m³/h"),
+    ("Energia total", "total_kW", "kW"),
+    ("Consumo específico", "specific_kWh_per_Nm3", "kWh/Nm³"),
+    ("Diâmetro da coluna", "diameter_m", "m"),
+    ("Altura da coluna", "height_m", "m"),
+    ("Margem de inundação", "flooding_pct", "% flood"),
+    ("Wobbe (gás tratado)", "treated_wobbe_MJ_per_Nm3", "MJ/Nm³"),
+    ("Custo específico", "specific_cost_usd_per_Nm3", "USD/Nm³"),
 ]
+
+_COMPS = ("CH4", "CO2", "H2S")
+_COMP_LABEL = {"CH4": "CH₄", "CO2": "CO₂", "H2S": "H₂S"}
 
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("BioGasSim -- Upgrading de biogás CH₄–CO₂")
+        self.setWindowTitle("BioGasSim -- Upgrading de biogás CH₄–CO₂–H₂S")
         self._updating = False
-        self._ch4 = 0.47
+        self._comp = {"CH4": 0.47, "CO2": 0.53, "H2S": 0.0}
 
         central = QtWidgets.QWidget()
         self.setCentralWidget(central)
@@ -77,6 +91,7 @@ class MainWindow(QtWidgets.QMainWindow):
         left = QtWidgets.QVBoxLayout()
         left.addWidget(self._build_operating_group())   # antes: define P p/ leituras
         left.addWidget(self._build_composition_group())
+        left.addWidget(self._build_safety_group())
         left.addWidget(self._build_solver_group())
         left.addStretch(1)
 
@@ -87,13 +102,13 @@ class MainWindow(QtWidgets.QMainWindow):
         root.addLayout(left, 0)
         root.addLayout(right, 1)
 
-        self._set_composition(self._ch4)                # popula leituras iniciais
+        self._set_composition(dict(self._comp))         # popula leituras iniciais
 
     # ------------------------------------------------------------------ #
     # Painéis
     # ------------------------------------------------------------------ #
     def _build_composition_group(self) -> QtWidgets.QGroupBox:
-        box = QtWidgets.QGroupBox("Composição da alimentação (CH₄ / CO₂)")
+        box = QtWidgets.QGroupBox("Composição da alimentação (CH₄ / CO₂ / H₂S)")
         lay = QtWidgets.QGridLayout(box)
 
         self.preset = QtWidgets.QComboBox()
@@ -102,21 +117,26 @@ class MainWindow(QtWidgets.QMainWindow):
         lay.addWidget(QtWidgets.QLabel("Preset"), 0, 0)
         lay.addWidget(self.preset, 0, 1, 1, 2)
 
-        self.ch4_spin = self._pct_spin()
-        self.co2_spin = self._pct_spin()
-        self.ch4_slider = self._pct_slider()
-        self.co2_slider = self._pct_slider()
-        self.ch4_spin.valueChanged.connect(lambda v: self._set_composition(v / 100.0))
-        self.co2_spin.valueChanged.connect(lambda v: self._set_composition(1.0 - v / 100.0))
-        self.ch4_slider.valueChanged.connect(lambda v: self._set_composition(v / 1000.0))
-        self.co2_slider.valueChanged.connect(lambda v: self._set_composition(1.0 - v / 1000.0))
+        self.spins: dict[str, QtWidgets.QDoubleSpinBox] = {}
+        self.sliders: dict[str, QtWidgets.QSlider] = {}
+        row = 1
+        for s in _COMPS:
+            sp = self._pct_spin()
+            sl = self._pct_slider()
+            # captura s via default arg para evitar late-binding
+            sp.valueChanged.connect(lambda v, name=s: self._set_component(name, v / 100.0))
+            sl.valueChanged.connect(lambda v, name=s: self._set_component(name, v / 1000.0))
+            self.spins[s] = sp
+            self.sliders[s] = sl
+            lay.addWidget(QtWidgets.QLabel(f"{_COMP_LABEL[s]} (%)"), row, 0)
+            lay.addWidget(sp, row, 1)
+            lay.addWidget(sl, row, 2)
+            row += 1
 
-        lay.addWidget(QtWidgets.QLabel("CH₄ (%)"), 1, 0)
-        lay.addWidget(self.ch4_spin, 1, 1)
-        lay.addWidget(self.ch4_slider, 1, 2)
-        lay.addWidget(QtWidgets.QLabel("CO₂ (%)"), 2, 0)
-        lay.addWidget(self.co2_spin, 2, 1)
-        lay.addWidget(self.co2_slider, 2, 2)
+        lay.addWidget(QtWidgets.QLabel("Total"), row, 0)
+        self.total_lbl = QtWidgets.QLabel("100.0 %")
+        self.total_lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        lay.addWidget(self.total_lbl, row, 1, 1, 2)
 
         # leituras de propriedades
         self._readout_labels = {}
@@ -127,7 +147,20 @@ class MainWindow(QtWidgets.QMainWindow):
             val.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self._readout_labels[key] = val
             form.addRow(f"{label} [{unit}]" if unit else label, val)
-        lay.addWidget(props, 3, 0, 1, 3)
+        lay.addWidget(props, row + 1, 0, 1, 3)
+        return box
+
+    def _build_safety_group(self) -> QtWidgets.QGroupBox:
+        box = QtWidgets.QGroupBox("Segurança -- H₂S")
+        lay = QtWidgets.QVBoxLayout(box)
+        self.safety_lbl = QtWidgets.QLabel("Sem H₂S na alimentação.")
+        self.safety_lbl.setWordWrap(True)
+        self.safety_lbl.setStyleSheet("color: #444;")
+        lay.addWidget(self.safety_lbl)
+        lay.addWidget(QtWidgets.QLabel("Limite máx. H₂S no gás tratado (ppm):"))
+        self.maxh2s_spin = self._num_spin(0.0, 1000.0, safety.max_h2s_treated_ppm(), 1)
+        self.maxh2s_spin.valueChanged.connect(self._refresh_safety)
+        lay.addWidget(self.maxh2s_spin)
         return box
 
     def _build_operating_group(self) -> QtWidgets.QGroupBox:
@@ -156,7 +189,7 @@ class MainWindow(QtWidgets.QMainWindow):
         btns = QtWidgets.QHBoxLayout()
         self.run_btn = QtWidgets.QPushButton("Executar caso")
         self.run_btn.clicked.connect(self._on_run)
-        self.sweep_btn = QtWidgets.QPushButton("Varrer composição")
+        self.sweep_btn = QtWidgets.QPushButton("Varrer H₂S")
         self.sweep_btn.clicked.connect(self._on_sweep)
         btns.addWidget(self.run_btn)
         btns.addWidget(self.sweep_btn)
@@ -176,7 +209,7 @@ class MainWindow(QtWidgets.QMainWindow):
         return box
 
     def _build_plot_group(self) -> QtWidgets.QGroupBox:
-        box = QtWidgets.QGroupBox("Mapa de desempenho (varredura de composição)")
+        box = QtWidgets.QGroupBox("Mapa de desempenho (varredura de H₂S)")
         lay = QtWidgets.QVBoxLayout(box)
         if _HAS_PLOT:
             self.figure = Figure(figsize=(4, 3))
@@ -194,8 +227,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def _pct_spin(self) -> QtWidgets.QDoubleSpinBox:
         s = QtWidgets.QDoubleSpinBox()
         s.setRange(0.0, 100.0)
-        s.setDecimals(1)
-        s.setSingleStep(1.0)
+        s.setDecimals(2)
+        s.setSingleStep(0.5)
         s.setSuffix(" %")
         return s
 
@@ -212,35 +245,80 @@ class MainWindow(QtWidgets.QMainWindow):
         return s
 
     # ------------------------------------------------------------------ #
-    # composição: normalização + fração complementar em tempo real
+    # composição: normalização + redistribuição em tempo real
     # ------------------------------------------------------------------ #
-    def _set_composition(self, ch4_frac: float):
+    def _set_component(self, name: str, frac: float):
+        """Editar ``name`` para ``frac`` e redistribuir o restante entre os
+        outros dois componentes preservando a razão atual entre eles."""
         if self._updating:
             return
-        ch4 = min(max(float(ch4_frac), 0.0), 1.0)
-        self._ch4 = ch4
-        co2 = 1.0 - ch4
+        frac = min(max(float(frac), 0.0), 1.0)
+        others = [s for s in _COMPS if s != name]
+        s_other = sum(self._comp[o] for o in others)
+        rem = 1.0 - frac
+        if s_other > 1e-9:
+            for o in others:
+                self._comp[o] = rem * (self._comp[o] / s_other)
+        else:
+            # ambos os outros são ~0: atribui o restante ao CO2 (complemento padrão)
+            for o in others:
+                self._comp[o] = rem if o == "CO2" else 0.0
+        self._comp[name] = frac
+        # clamp numérico e renormalização final (defesa contra drift)
+        tot = sum(self._comp.values())
+        if tot > 0:
+            for s in _COMPS:
+                self._comp[s] = self._comp[s] / tot
+        self._set_composition(dict(self._comp))
+
+    def _set_composition(self, comp: dict):
+        """Sincroniza spins/sliders/total a partir do dict de frações."""
+        if self._updating:
+            return
         self._updating = True
         try:
-            self.ch4_spin.setValue(ch4 * 100.0)
-            self.co2_spin.setValue(co2 * 100.0)
-            self.ch4_slider.setValue(int(round(ch4 * 1000)))
-            self.co2_slider.setValue(int(round(co2 * 1000)))
+            for s in _COMPS:
+                v = float(comp.get(s, 0.0))
+                self._comp[s] = v
+                self.spins[s].setValue(v * 100.0)
+                self.sliders[s].setValue(int(round(v * 1000)))
+            tot = sum(self._comp.values())
+            self.total_lbl.setText(f"{tot * 100:5.1f} %")
         finally:
             self._updating = False
         self._refresh_props()
+        self._refresh_safety()
 
     def _refresh_props(self):
         p_bar = self.p_spin.value() if hasattr(self, "p_spin") else 1.01325
-        props = mixture_properties(ch4=self._ch4, T=298.15, P=p_bar * 1e5)
+        comp = {s: self._comp[s] for s in _COMPS if self._comp[s] > 0}
+        if not comp:
+            comp = {"CH4": 1.0}
+        props = mixture_properties_general(comp, T=298.15, P=p_bar * 1e5)
         d = props.as_dict()
         for key, _label, _unit, fmt in _READOUTS:
             self._readout_labels[key].setText(fmt.format(d[key]))
 
+    def _refresh_safety(self):
+        if not hasattr(self, "safety_lbl"):
+            return
+        if hasattr(self, "maxh2s_spin"):
+            safety.set_max_h2s_treated_ppm(self.maxh2s_spin.value())
+        feed_h2s = self._comp["H2S"]
+        if safety.h2s_present(feed_h2s):
+            warns = safety.h2s_warnings(feed_h2s, 0.0)
+            head = warns[0] if warns else "H₂S presente na alimentação."
+            self.safety_lbl.setText(head + "\n\n⚠ Gas tóxico e corrosivo -- "
+                                     "requer remocao antes do uso.")
+            self.safety_lbl.setStyleSheet("color: #b00; font-weight: 600;")
+        else:
+            self.safety_lbl.setText("Sem H₂S na alimentação.")
+            self.safety_lbl.setStyleSheet("color: #444;")
+
     def _on_preset(self, name: str):
         frac = PRESETS.get(name)
         if frac is not None:
-            self._set_composition(frac)
+            self._set_composition(dict(frac))
 
     def _on_tech_changed(self, tech: str):
         # aplica condições operacionais padrão da tecnologia
@@ -261,11 +339,14 @@ class MainWindow(QtWidgets.QMainWindow):
     # solver
     # ------------------------------------------------------------------ #
     def _current_case(self) -> cases.Case:
+        feed = {s: self._comp[s] for s in _COMPS if self._comp[s] > 1e-9}
+        if not feed:
+            feed = {"CH4": 1.0}
+        feed["flow_mols"] = self.flow_spin.value()
         return cases.Case(
             name="gui",
             technology=self.tech.currentText(),
-            feed={"CH4": self._ch4, "CO2": 1.0 - self._ch4,
-                  "flow_mols": self.flow_spin.value()},
+            feed=feed,
             operating={"P_bar": self.p_spin.value(), "L_over_V": self.lv_spin.value(),
                        "N_stages": int(self.n_spin.value()), "height_m": self.h_spin.value()},
         )
@@ -273,11 +354,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_run(self):
         self.status.setText("Executando...")
         try:
-            metrics = cases.run_case(self._current_case())["metrics"]
+            out = cases.run_case(self._current_case())
+            metrics = out["metrics"]
         except Exception as exc:  # pragma: no cover - erro numérico
             self.status.setText(f"Erro: {exc}")
             return
         self._fill_table(metrics)
+        self._refresh_safety_with_result(metrics)
         conv = metrics.get("converged")
         self.status.setText(
             f"Convergiu: {conv} | iterações: {metrics.get('iterations', '-')} | "
@@ -285,24 +368,38 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         return metrics
 
+    def _refresh_safety_with_result(self, metrics: dict):
+        feed_h2s = self._comp["H2S"]
+        if not safety.h2s_present(feed_h2s):
+            return
+        t_ppm = metrics.get("treated_H2S_ppm", 0.0) or 0.0
+        warns = safety.h2s_warnings(feed_h2s, t_ppm,
+                                    metrics.get("liquid_H2S_loading_mol_per_mol"))
+        suit = safety.engine_suitable(t_ppm)
+        text = "\n".join(warns) + f"\nAdequado p/ motor: {'SIM' if suit else 'NÃO'}"
+        self.safety_lbl.setText(text)
+        self.safety_lbl.setStyleSheet("color: #b00; font-weight: 600;" if not suit
+                                       else "color: #060; font-weight: 600;")
+
     def _on_sweep(self):
-        self.status.setText("Varrendo composição...")
-        tech = self.tech.currentText()
+        self.status.setText("Varrendo H2S...")
         op = self._current_case().operating
         try:
-            rows = cases.sweep_composition(tech, ch4_values=cases.frange(0.20, 0.95, 0.05),
-                                           operating=op, flow=self.flow_spin.value())
+            rows = cases.sweep_h2s("water", cases.frange(0.0, 0.05, 0.005),
+                                   ch4_co2_ratio=(self._comp["CH4"]
+                                                  / max(self._comp["CH4"] + self._comp["CO2"], 1e-9)),
+                                   operating=op, flow=self.flow_spin.value())
         except Exception as exc:  # pragma: no cover
             self.status.setText(f"Erro na varredura: {exc}")
             return []
         self._plot_sweep(rows)
         ok = sum(1 for r in rows if r.get("converged"))
-        self.status.setText(f"Varredura concluída: {ok}/{len(rows)} pontos convergiram.")
+        self.status.setText(f"Varredura H₂S: {ok}/{len(rows)} pontos convergiram.")
         return rows
 
     def _fill_table(self, metrics: dict):
         self.table.setRowCount(0)
-        for key, label, unit in _RESULT_ROWS:
+        for label, key, unit in _RESULT_ROWS:
             if key not in metrics or metrics[key] is None:
                 continue
             row = self.table.rowCount()
@@ -314,15 +411,18 @@ class MainWindow(QtWidgets.QMainWindow):
     def _plot_sweep(self, rows):
         if not _HAS_PLOT or self.canvas is None:
             return
-        xs = [r["feed_CH4_pct"] for r in rows if r.get("converged")]
-        pur = [r["purity_CH4"] for r in rows if r.get("converged")]
-        rec = [r["recovery_CH4"] for r in rows if r.get("converged")]
+        xs = [r["feed_H2S_pct"] for r in rows if r.get("converged")]
+        h2sr = [r.get("H2S_removal") for r in rows if r.get("converged")]
+        rec = [r.get("recovery_CH4") for r in rows if r.get("converged")]
+        co2r = [r.get("CO2_removal") for r in rows if r.get("converged")]
         self.ax.clear()
-        self.ax.plot(xs, pur, "-o", label="Pureza CH₄ (%)", markersize=3)
-        self.ax.plot(xs, rec, "-s", label="Recuperação CH₄ (%)", markersize=3)
-        self.ax.set_xlabel("CH₄ na alimentação (%)")
+        if xs:
+            self.ax.plot(xs, h2sr, "-o", label="Remoção H₂S (%)", markersize=3)
+            self.ax.plot(xs, rec, "-s", label="Recuperação CH₄ (%)", markersize=3)
+            self.ax.plot(xs, co2r, "-^", label="Remoção CO₂ (%)", markersize=3)
+        self.ax.set_xlabel("H₂S na alimentação (mol%)")
         self.ax.set_ylabel("%")
-        self.ax.set_title("Desempenho vs composição")
+        self.ax.set_title("Desempenho vs H₂S")
         self.ax.legend(fontsize=8)
         self.ax.grid(True, alpha=0.3)
         self.figure.tight_layout()

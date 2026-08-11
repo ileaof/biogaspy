@@ -4,7 +4,7 @@ Simulador científico de **upgrading de biogás** (remoção de CO₂) em Python
 orientado a objetos e de código aberto. Projeto, análise e comparação de processos de
 purificação para produção de biometano a partir de biogás **47% CH₄ / 53% CO₂**.
 
-> **Status (v0.2):** 168 testes passando. Absorvedor com Newton global e balanço de
+> **Status (v0.2):** 199 testes passando. Absorvedor com Newton global e balanço de
 > energia adiabático; especiação **Kent-Eisenberg** rigorosa (MEA/DEA/MDEA); hidráulica
 > de coluna (flooding de Eckert, perda de carga de Stichlmair); estudos de sensibilidade
 > paramétrica; solventes físicos (Selexol/Rectisol) e MDEA calibrados vs. literatura;
@@ -12,6 +12,11 @@ purificação para produção de biometano a partir de biogás **47% CH₄ / 53%
 > **CLI de casos** (composição variável, varredura paramétrica); **GUI** (PySide6/PyQt5);
 > e **composição multicomponente** (CH₄/CO₂/N₂/O₂/H₂/H₂O/H₂S/NH₃/CO/Ar) com propriedades
 > de gás, simulação em lote e estudos paramétricos/otimização.
+> **H₂S como primeira extensão do modelo binário CH₄–CO₂:** banco de **parâmetros de
+> interação binária (kij)** não-nulos para Peng-Robinson (CH₄–CO₂, CH₄–H₂S, CO₂–H₂S),
+> solubilidade de H₂S em água (≈3× mais solúvel que CO₂), qualidade do gás tratado
+> (LHV/HHV/Wobbe/densidade/SG + H₂S residual), **segurança** (avisos de toxicidade,
+> limite de H₂S configurável), **varredura de H₂S** e **dashboard** com seção H₂S.
 > Water Scrubbing e MEA validados ponta-a-ponta (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)).
 
 ## Clonar o repositório
@@ -80,18 +85,24 @@ binária CH₄–CO₂ sobre desempenho, dimensionamento e economia:
 ```bash
 biogassim new meu_projeto --tech water          # cria projeto + case.json padrão
 biogassim set CH4=0.60 --case meu_projeto/case.json   # CO2 vira 0.40 (complemento)
-biogassim run meu_projeto/case.json             # roda o caso, imprime métricas
+biogassim set CH4=46 CO2=53 H2S=1 --case meu_projeto/case.json  # ternário CH4-CO2-H2S
+biogassim run meu_projeto/case.json             # roda o caso, imprime dashboard
+biogassim run meu_projeto/case.json --max-h2s-ppm 4   # impõe limite de H2S no tratado
 biogassim props CH4=0.60 CO2=0.40 --P 20        # MM, Z, densidade, LHV/HHV, Wobbe, SG
 biogassim sweep CH4=0.20:0.95:0.05 --out sweep.csv    # estudo paramétrico de composição
+biogassim sweep H2S=0:0.05:0.005 --tech water   # varredura do contaminante H2S
 biogassim export results.xlsx --case meu_projeto/case.json
 biogassim report --case meu_projeto/case.json   # relatório HTML
 ```
 
-A composição é sempre normalizada (`xCH₄ + xCO₂ = 1`) e validada; a fração
-complementar é atualizada automaticamente. O `sweep` varre a fração de CH₄ e
-tabela pureza, recuperação, remoção de CO₂, perda de metano, consumo de
-solvente/água, energia, diâmetro/altura da coluna, perda de carga, margem de
-inundação e custo — a base dos mapas de desempenho.
+A composição é sempre normalizada e validada. Para feed **binário** CH₄–CO₂ a
+fração complementar é atualizada automaticamente (mexer no CH₄ atualiza o CO₂);
+para feed **multi-espécie** (ex.: CH₄+CO₂+H₂S) todas as frações são
+normalizadas para somar 100%. O `sweep` varre a fração de CH₄ (`CH4=...`) **ou**
+do contaminante H₂S (`H2S=...`, mantendo a razão CH₄:CO₂) e tabela pureza,
+recuperação, remoção de CO₂/H₂S, perda de metano, consumo de solvente/água,
+energia, diâmetro/altura da coluna, perda de carga, margem de inundação, custo e
+qualidade do gás tratado — a base dos mapas de desempenho.
 
 ### Misturas multicomponente e simulação em lote
 
@@ -112,12 +123,49 @@ O `batch` lê um CSV (uma linha por alimentação; colunas = espécies, + opcion
 `name`, `T_K`, `P_bar`, `basis`, `technology`) e calcula as propriedades de cada
 mistura; com `--tech`, roda também o upgrading e reporta a remoção por espécie.
 
-**Absorção de gases ácidos (water scrubbing):** a água agora absorve, além do
-CO₂, o **H₂S** (≈3× mais solúvel — removido preferencialmente) e o **NH₃** (muito
+**Absorção de gases ácidos (water scrubbing):** a água absorve, além do CO₂, o
+**H₂S** (≈3× mais solúvel — removido preferencialmente) e o **NH₃** (muito
 solúvel), enquanto **N₂/O₂/H₂/Ar/CO** passam praticamente direto. A remoção é
-reportada por espécie (`H2S_removal`, `NH3_removal`, `N2_removal`, …). Nas
-**aminas (MEA)**, a absorção **reativa** de H₂S/NH₃ ainda é roadmap — o modelo de
-amina trata só CH₄/CO₂.
+reportada por espécie (`H2S_removal`, `NH3_removal`, `N2_removal`, …). O
+**equilíbrio gás-líquido** usa Lei de Henry com dependência de temperatura (van't
+Hoff); a **equação de estado** (Peng-Robinson) estende-se ao ternário CH₄–CO₂–H₂S
+com **parâmetros de interação binária (kij) não-nulos** armazenados em
+`Thermodynamics/Interactions.py` (CH₄–CO₂≈0,092, CH₄–H₂S≈0,083, CO₂–H₂S≈0,097).
+A coluna resolve o transporte acoplado das três espécies ao longo dos estágios.
+
+Após o upgrading, o simulador reporta a **qualidade do gás tratado**:
+composição (CH₄/CO₂/H₂S), poder calorífico (LHV/HHV), Índice de Wobbe, densidade
+e densidade relativa, além da **concentração residual de H₂S** (mol% e ppm) e do
+**carregamento de H₂S na fase líquida** (mol H₂S/mol solvente). Nas **aminas
+(MEA)**, a absorção **reativa** de H₂S/NH₃ ainda é roadmap — o modelo de amina
+trata só CH₄/CO₂.
+
+### H₂S — gás ácido tóxico e corrosivo
+
+O **sulfeto de hidrogênio (H₂S)** está presente em praticamente todo biogás
+(digestão anaeróbia de proteínas/sulfetos), tipicamente 50–4.000 ppm, podendo
+chegar a % em aterros/corrosivos. É **altamente tóxico** (IDLH 50 ppm, TLV-TWA
+ACGIH 1 ppm), **corrosivo** (ataca aço, concretos e lubrificantes) e odorante
+(o limiar olfativo é ~0,0005 ppm, mas o olfato fadiga rapidamente em
+concentrações maiores — o "silêncio" não significa segurança).
+
+No **water scrubbing**, o H₂S é **mais solúvel em água que o CO₂** (H_H₂S < H_CO₂),
+sendo removido preferencialmente no mesmo contato, mas parte acompanha o gás
+tratado conforme a razão L/V e a pressão. O efeito sobre o processo:
+
+- **Recuperação de CH₄** — levemente reduzida (a absorção de H₂S dilui o
+  solvente e compete com CO₂, e algum CH₄ é co-absorvido).
+- **Remoção de CO₂** — pouco afetada (H₂S é traço frente ao CO₂).
+- **Equipamento** — o efluente líquido carregado de H₂S é **corrosivo** e exige
+  *stripping* + tratamento antes do descarte/reuso; o gás tratado deve atender
+  ao limite de H₂S do destino (motor ≤ ~10 ppm; gasoduto ≤ ~4 ppm).
+
+**Segurança no simulador:** sempre que H₂S está presente na alimentação, o
+software emite avisos distinguindo **feed / gás tratado / fase líquida**, e o
+limite máximo admissível de H₂S no gás tratado é **configurável** (`--max-h2s-ppm`
+na CLI, campo na GUI; `biogassim.safety.set_max_h2s_treated_ppm`). O simulador
+**nunca** classifica silenciosamente um gás com H₂S significativo como adequado
+para motor — a decisão `engine_suitable` é explícita.
 
 ### Estudos paramétricos e otimização
 
@@ -181,33 +229,43 @@ sobre o mesmo motor de simulação da CLI. A janela tem cinco áreas:
   (`water` ou `mea`) e ajuste vazão do biogás, pressão, razão L/V, número de
   estágios e altura da coluna. Trocar a tecnologia carrega os valores padrão
   correspondentes.
-- **Composição da alimentação** (meio, à esquerda) — defina a mistura CH₄/CO₂ por
-  um **preset** (biogás 47/53, digestor 60/40, aterro 50/50, metano puro), pelos
-  **campos numéricos em %** ou pelos **sliders**. A composição é normalizada e a
-  fração complementar é ajustada automaticamente (mexer no CH₄ atualiza o CO₂ e
-  vice-versa). O bloco **Propriedades da mistura** recalcula em tempo real: massa
-  molar, fator Z, densidade (a T,P) e normal, PCI/PCS (LHV/HHV), Índice de Wobbe
-  e densidade relativa ao ar.
+- **Composição da alimentação** (meio, à esquerda) — defina a mistura
+  **CH₄/CO₂/H₂S** por um **preset** (biogás 47/53/0, biogás c/ 1–5% H₂S,
+  digestor 60/40, metano puro), pelos **campos numéricos em %** ou pelos
+  **sliders**. A composição é normalizada: editar um componente redistribui o
+  restante entre os outros dois preservando a razão atual (mexer no H₂S mantém a
+  proporção CH₄:CO₂). O total é sempre mostrado e validado contra 100%. O bloco
+  **Propriedades da mistura** recalcula em tempo real: massa molar, fator Z,
+  densidade (a T,P) e normal, PCI/PCS (LHV/HHV), Índice de Wobbe e densidade
+  relativa ao ar — agora incluindo a contribuição do H₂S.
+- **Segurança H₂S** (logo abaixo da composição) — banner que acende sempre que
+  há H₂S na alimentação (tóxico/corosivo), com o **limite máximo admissível de
+  H₂S no gás tratado** configurável em ppm. Após *Executar caso*, mostra a
+  concentração de H₂S no gás tratado, o carregamento líquido e a decisão de
+  adequação para motor (SIM/NÃO).
 - **Solver** (base, à esquerda) — **Executar caso** roda a simulação com a
-  composição e as condições atuais; **Varrer composição** roda o estudo
-  paramétrico. A linha de status logo abaixo é o **monitor de convergência**
+  composição e as condições atuais; **Varrer H₂S** roda o estudo paramétrico do
+  contaminante. A linha de status logo abaixo é o **monitor de convergência**
   (convergiu?, número de iterações, pureza e recuperação).
 - **Resultados** (à direita) — tabela com pureza de CH₄, recuperação, remoção de
-  CO₂, perda de metano, consumo de solvente/água, energia, diâmetro e altura da
-  coluna, perda de carga, margem de inundação e custo específico.
-- **Mapa de desempenho** (base, à direita) — gráfico de pureza e recuperação de
-  CH₄ em função da fração de CH₄ na alimentação, gerado pela varredura.
+  CO₂, **remoção de H₂S** e **H₂S no gás tratado (ppm)**, perda de metano,
+  consumo de solvente/água, energia, diâmetro e altura da coluna, margem de
+  inundação, Wobbe do gás tratado e custo específico.
+- **Mapa de desempenho** (base, à direita) — gráfico de remoção de H₂S,
+  recuperação de CH₄ e remoção de CO₂ em função da fração de H₂S na alimentação.
 
 **Fluxo típico de uso:**
 
 1. Escolha a **tecnologia** no painel de condições operacionais.
 2. Defina a **composição** (preset, campo `%` ou slider) — as propriedades da
-   mistura são atualizadas a cada mudança.
+   mistura são atualizadas a cada mudança; o banner de segurança acende se houver
+   H₂S.
 3. Ajuste as **condições operacionais** (pressão, L/V, estágios, altura).
-4. Clique em **Executar caso** — as métricas aparecem na tabela de resultados e o
-   status mostra a convergência.
-5. Clique em **Varrer composição** — o mapa de desempenho mostra como pureza e
-   recuperação variam na faixa de CH₄ (20–95%).
+4. Clique em **Executar caso** — as métricas aparecem na tabela de resultados, o
+   status mostra a convergência e o banner de segurança atualiza com o H₂S
+   tratado e a adequação para motor.
+5. Clique em **Varrer H₂S** — o mapa de desempenho mostra como a remoção de H₂S, a
+   recuperação de CH₄ e a remoção de CO₂ variam na faixa de 0–5 mol% de H₂S.
 
 Todos os cálculos reutilizam o mesmo núcleo da CLI (`biogassim.cases`); portanto,
 para as mesmas entradas, GUI e CLI produzem resultados idênticos.
@@ -241,7 +299,8 @@ print(r.purity_CH4, r.methane_recovery, r.CO2_removal, r.diameter)
 ```
 biogassim/
   Core/             constantes, unidades, solver numérico, convergência
-  Thermodynamics/   EOS (Peng-Robinson, SRK), Lei de Henry, fugacidade, flash
+  Thermodynamics/   EOS (Peng-Robinson, SRK), Lei de Henry, fugacidade, flash,
+                    parâmetros de interação binária kij (Interactions.py)
   Properties/       banco de componentes (CH4, CO2, H2O, N2, H2S, MEA, DEA, MDEA)
   MassTransfer/     difusão, teoria dos dois filmes, correlações (Re, Sc, Sh, HTU/NTU)
   Hydraulics/       recheios, flooding, perda de carga, diâmetro
@@ -254,6 +313,9 @@ biogassim/
   Reporting/        gráficos (matplotlib)
   Examples/         casos prontos
   cli.py            linha de comando
+  cases.py          casos JSON, validação, execução, varreduras (CH4, H2S)
+  safety.py         segurança H2S (avisos, limite configurável, adequação p/ motor)
+  dashboard.py      formatação de resultados (feed/upgraded/performance/safety)
 tests/              pytest
 docs/               documentação
 ```
@@ -288,7 +350,7 @@ Validação sistemática contra Aspen Plus/DWSIM é meta futura (ROADMAP).
 
 ```bash
 pip install -e ".[dev,excel,gui]"   # pytest, pytest-cov, ruff, openpyxl, PySide6
-pytest -q                       # roda os 168 testes (GUI é pulada sem Qt instalado)
+pytest -q                       # roda os 199 testes (GUI é pulada sem Qt instalado)
 pytest --cov=biogassim          # com cobertura
 ruff check biogassim tests      # lint
 ruff check --fix biogassim tests   # corrige o que for auto-corrigível

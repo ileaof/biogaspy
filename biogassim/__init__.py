@@ -19,6 +19,7 @@ especiação Kent-Eisenberg rigorosa (MDEA calibrado vs. VLE); Selexol/Rectisol
 (solventes físicos) calibrados vs. literatura; PSA e Membranas como modelos
 simplificados/extensíveis. Ver ``docs/ROADMAP.md`` e ``CHANGELOG.md``.
 """
+from . import safety
 from .version import __version__
 
-__all__ = ["__version__"]
+__all__ = ["__version__", "safety"]
