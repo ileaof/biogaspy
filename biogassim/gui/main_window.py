@@ -22,10 +22,12 @@ from __future__ import annotations
 
 from .. import cases, safety
 from ..Properties import mixture_properties_general
-from .qt import Qt, QtGui, QtWidgets, Signal
+from .qt import Qt, QtCore, QtGui, QtWidgets, Signal
 
 # QAction mudou de QtWidgets (PyQt5) para QtGui (PySide6/PyQt6) -- portável:
 QAction = getattr(QtGui, "QAction", None) or QtWidgets.QAction  # noqa: B009
+# QDesktopServices: QtGui (PySide6/PyQt6) ou QtWidgets (PyQt5):
+QDesktopServices = getattr(QtGui, "QDesktopServices", None) or QtWidgets.QDesktopServices  # noqa: B009
 
 # Canvas matplotlib (opcional -- degrada com elegância se indisponível)
 try:
@@ -134,12 +136,35 @@ class MainWindow(QtWidgets.QMainWindow):
     # Menu / Sobre
     # ------------------------------------------------------------------ #
     def _build_menu(self):
-        """Barra de menu com Ajuda → Sobre o BioGasPy."""
+        """Barra de menu com Ajuda → Manual (HTML) / Sobre o BioGasPy."""
         menubar = self.menuBar()
         help_menu = menubar.addMenu("&Ajuda")
+        act_help = QAction("&Manual de Ajuda (HTML)…", self)
+        act_help.triggered.connect(self._open_html_help)
+        help_menu.addAction(act_help)
+        help_menu.addSeparator()
         act = QAction("&Sobre o BioGasPy…", self)
         act.triggered.connect(self._show_about)
         help_menu.addAction(act)
+
+    def _open_html_help(self):
+        """Abre docs/HELP.html no navegador padrão; gera-o sob demanda se ausente."""
+        import pathlib
+
+        from ..Reporting.help_html import build_help_html
+
+        root = pathlib.Path(__file__).resolve().parents[2]
+        path = root / "docs" / "HELP.html"
+        if not path.exists():
+            try:
+                path = build_help_html(out=path)
+            except Exception:
+                QtWidgets.QMessageBox.warning(
+                    self, "Ajuda",
+                    "Não foi possível gerar o manual HTML.\n"
+                    "Rode: python -m biogassim.Reporting.help_html")
+                return
+        QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(path)))
 
     def _show_about(self):
         """Caixa 'Sobre' com a autoria/afiliação do projeto."""

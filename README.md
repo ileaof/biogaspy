@@ -4,7 +4,7 @@ Simulador científico de **upgrading de biogás** (remoção de CO₂) em Python
 orientado a objetos e de código aberto. Projeto, análise e comparação de processos de
 purificação para produção de biometano a partir de biogás **47% CH₄ / 53% CO₂**.
 
-> **Status (v0.2):** 199 testes passando. Absorvedor com Newton global e balanço de
+> **Status (v0.2):** 251 testes passando. Absorvedor com Newton global e balanço de
 > energia adiabático; especiação **Kent-Eisenberg** rigorosa (MEA/DEA/MDEA); hidráulica
 > de coluna (flooding de Eckert, perda de carga de Stichlmair); estudos de sensibilidade
 > paramétrica; solventes físicos (Selexol/Rectisol) e MDEA calibrados vs. literatura;
@@ -22,6 +22,9 @@ purificação para produção de biometano a partir de biogás **47% CH₄ / 53%
 > Métodos* da GUI rodam todas as tecnologias sob o mesmo feed via um backend
 > compartilhado (`ComparisonEngine`) — tabela padronizada, ranking
 > uni/multi-critério, energia/economia e exportação (CSV/JSON/HTML/XLSX/PDF).
+> **Manual de ajuda em HTML:** `biogassim help` (CLI) ou menu *Ajuda → Manual de
+> Ajuda (HTML)* na GUI geram/abrem `docs/HELP.html`, um manual navegável (sumário
+> lateral, seções numeradas, tema claro/escuro) produzido a partir deste README.
 
 ## Clonar o repositório
 
@@ -67,6 +70,9 @@ python -m biogassim.cli <comando>   # sempre funciona, sem depender do PATH
 
 Veja todos os comandos com `biogassim --help`. Para abrir a **interface gráfica
 (GUI)**: `biogassim gui` (detalhes na seção [Interface gráfica](#interface-gráfica-gui)).
+Para gerar e abrir o **manual de ajuda em HTML**: `biogassim help` (ou
+`biogassim help --open` para abrir no navegador; `--rebuild` regenera a partir do
+README).
 
 ## Uso rápido (CLI)
 
@@ -302,6 +308,10 @@ acessível com a janela reduzida):
 Todos os cálculos reutilizam o mesmo núcleo da CLI (`biogassim.cases`); portanto,
 para as mesmas entradas, GUI e CLI produzem resultados idênticos.
 
+A barra de menu tem **Ajuda** → *Manual de Ajuda (HTML)* (abre `docs/HELP.html`
+no navegador, gerando-o a partir deste README se necessário) e *Sobre o BioGasPy*
+(autoria/afiliação).
+
 #### Aba "Comparação de Métodos"
 
 A janela principal tem **duas abas**: *Simulação* (acima) e **Comparação de
@@ -400,7 +410,7 @@ biogassim/
   Membranes/        permeabilidades, modelo solução-difusão
   Optimization/     energia, economia, sensibilidade
   Export/           CSV, JSON, Excel, HTML (+ stubs PDF/Tecplot/VTK)
-  Reporting/        gráficos (matplotlib)
+  Reporting/        gráficos (matplotlib) + gerador do manual HTML (help_html.py)
   Examples/         casos prontos
   cli.py            linha de comando
   cases.py          casos JSON, validação, execução, varreduras (CH4, H2S)
@@ -410,7 +420,7 @@ biogassim/
   dashboard.py      formatação de resultados (feed/upgraded/performance/safety)
   gui/              GUI PySide6/PyQt5 (main_window + aba comparison_tab)
 tests/              pytest
-docs/               documentação
+docs/               documentação (ARCHITECTURE.md, ROADMAP.md, HELP.html, images/)
 ```
 
 Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) e [`docs/ROADMAP.md`](docs/ROADMAP.md).
@@ -444,7 +454,7 @@ Validação sistemática contra Aspen Plus/DWSIM é meta futura (ROADMAP).
 
 ```bash
 pip install -e ".[dev,excel,gui]"   # pytest, pytest-cov, ruff, openpyxl, PySide6
-pytest -q                       # roda os 243 testes (GUI é pulada sem Qt instalado)
+pytest -q                       # roda os 251 testes (GUI é pulada sem Qt instalado)
 pytest --cov=biogassim          # com cobertura
 ruff check biogassim tests      # lint
 ruff check --fix biogassim tests   # corrige o que for auto-corrigível

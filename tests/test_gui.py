@@ -103,3 +103,15 @@ def test_about_menu_present(app):
             if "Sobre" in act.text():
                 found = True
     assert found
+
+
+def test_html_help_menu_present(app):
+    """Barra de menu Ajuda → Manual de Ajuda (HTML) presente e abre o manual."""
+    w = MainWindow()
+    texts = []
+    for top in w.menuBar().actions():
+        for act in (top.menu().actions() if top.menu() else []):
+            texts.append(act.text())
+    assert any("Manual" in t and "HTML" in t for t in texts)
+    # o handler existe e aponta para o gerador do manual
+    assert hasattr(w, "_open_html_help")

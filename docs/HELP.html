@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BioGasSim — Manual de Ajuda</title>
+<style>
+
+  :root{
+    --ground:#F4F7FA; --surface:#EAF1EA; --surface-2:#DDE7DD;
+    --ink:#16271E; --ink-soft:#415A4A; --ink-faint:#6B8073;
+    --ink-2:var(--ink-soft); --ink-3:var(--ink-faint);
+    --rule:#C9D6CC; --rule-soft:#DCE6DC;
+    --bio:#1F8A5B;  /* biometano - verde */
+    --gas:#2E6F9E;  /* gás - azul */
+    --warm:#C2812B;  /* destaque - âmbar */
+    --crit:#B4453B;
+    --term-bg:#0C161A; --term-ink:#DCE6EE; --term-dim:#7E92A0;
+    --accent:var(--bio); --cold:var(--gas); --warm:var(--warm);
+    --ok:#1E7A4C;
+    --code-bg:var(--surface); --warn-bg:#F6ECE1; --warn-rule:#C9A469;
+    --maxw:860px;
+    --serif:"Iowan Old Style","Palatino Linotype","Palatino",Georgia,"Times New Roman",serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --mono:"JetBrains Mono","SF Mono","Cascadia Code",Consolas,"Liberation Mono",monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0E1512; --surface:#16221E; --surface-2:#1E2C26;
+      --ink:#DCE6EE; --ink-soft:#A6B6AE; --ink-faint:#7E9088;
+      --rule:#243028; --rule-soft:#1E2A24;
+      --bio:#4ADE80; --gas:#5FA8D6; --warm:#D69A4A; --crit:#E07060;
+      --term-bg:#070D0B; --term-ink:#DCE6EE; --term-dim:#5E7270;
+      --ok:#4ADE80; --warn-bg:#261A12; --warn-rule:#B9763A;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0E1512; --surface:#16221E; --surface-2:#1E2C26;
+    --ink:#DCE6EE; --ink-soft:#A6B6AE; --ink-faint:#7E9088;
+    --rule:#243028; --rule-soft:#1E2A24;
+    --bio:#4ADE80; --gas:#5FA8D6; --warm:#D69A4A; --crit:#E07060;
+    --term-bg:#070D0B; --term-ink:#DCE6EE; --term-dim:#5E7270;
+    --ok:#4ADE80; --warn-bg:#261A12; --warn-rule:#B9763A;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--sans); font-size:16.5px; line-height:1.62;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  h1,h2,h3,h4{font-family:var(--serif); font-weight:700; line-height:1.18; text-wrap:balance; letter-spacing:-.005em}
+  .mf{font-style:italic; color:var(--warm); font-family:var(--serif)}
+  code,.mono{font-family:var(--mono)}
+  strong{color:var(--ink)}
+
+  /* layout */
+  .shell{display:grid; grid-template-columns:248px minmax(0,1fr); gap:52px; max-width:1200px; margin:0 auto; padding:0 28px}
+  @media (max-width:960px){ .shell{grid-template-columns:1fr; gap:0} }
+
+  /* TOC */
+  .toc{position:sticky; top:0; align-self:start; max-height:100vh; overflow-y:auto;
+    padding:28px 0 34px; font-size:13px; line-height:1.5; color:var(--ink-soft)}
+  @media (max-width:960px){ .toc{position:static; max-height:none; padding:12px 0 8px; border-bottom:1px solid var(--rule)} }
+  .toc h4{font-family:var(--sans); font-size:10.5px; font-weight:600; letter-spacing:.11em;
+    text-transform:uppercase; color:var(--ink-faint); margin:20px 0 4px}
+  .toc h4:first-child{margin-top:0}
+  .toc ol{list-style:none; padding:0; margin:0 0 6px}
+  .toc li{margin:2px 0}
+  .toc a{color:var(--ink-soft); display:block; padding:4px 10px; border-radius:3px; border-left:2px solid transparent; line-height:1.35}
+  .toc a:hover{background:var(--surface); color:var(--ink); text-decoration:none}
+  .toc a.active{color:var(--accent); border-left-color:var(--accent); background:var(--surface)}
+  .toc ol ol{margin:2px 0 2px; padding-left:12px}
+  .toc ol ol a{font-size:12px; padding:2px 8px}
+
+  /* main */
+  .doc{min-width:0; max-width:var(--maxw); padding:0 0 90px}
+  section{padding-top:34px; margin-top:16px; border-top:1px solid var(--rule-soft)}
+  .part + section{border-top:none; margin-top:0; padding-top:22px}
+  h2{font-size:27px; margin:0 0 8px; scroll-margin-top:1rem}
+  h2 .num{font-family:var(--mono); font-size:14px; font-weight:500; color:var(--accent); letter-spacing:0; margin-right:.5em; vertical-align:.02em}
+  h3{font-size:19px; margin:26px 0 4px; color:var(--ink); scroll-margin-top:1rem}
+  h4{font-size:15.5px; margin:20px 0 2px; font-family:var(--sans); font-weight:600; letter-spacing:.01em}
+  p{margin:10px 0}
+  ul,ol{padding-left:1.3em}
+  li{margin:3px 0}
+  code{font-size:.85em; background:var(--surface); padding:1px 5px; border-radius:4px; color:var(--ink)}
+
+  /* eyebrow */
+  .eyebrow{font-family:var(--sans); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:600; margin:0 0 6px}
+
+  /* masthead / hero */
+  .masthead{padding:44px 0 4px}
+  h1.title{font-family:var(--serif); font-size:40px; margin:0 0 10px; letter-spacing:-.01em; line-height:1.1}
+  .lede{font-family:var(--serif); font-size:18px; color:var(--ink-soft); max-width:60ch; margin:.6rem 0 1rem; line-height:1.5}
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 6px}
+  .chip{font-family:var(--sans); font-size:12px; padding:5px 11px; border:1px solid var(--rule); border-radius:999px; color:var(--ink-soft); background:var(--surface)}
+  .chip.ok{border-color:var(--ok); color:var(--ok)}
+
+  .duo-rule{height:4px; border:none; border-radius:2px; margin:26px 0; background:linear-gradient(90deg,var(--warm),var(--cold))}
+  hr.divider{border:none; border-top:1px solid var(--rule-soft); margin:32px 0}
+
+  /* part dividers */
+  .part{margin:40px 0 8px; padding-top:22px; border-top:2px solid var(--rule)}
+  .part .pk{font-family:var(--sans); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--warm); font-weight:600; margin:0 0 4px}
+  .part h2{font-family:var(--serif); font-size:30px; margin:0 0 6px}
+  .part .psub{color:var(--ink-soft); margin:0 0 6px; font-size:15px; font-family:var(--serif); max-width:62ch; line-height:1.5}
+
+  /* code blocks */
+  pre{font-family:var(--mono); font-size:13px; line-height:1.55; background:var(--surface); border:1px solid var(--rule);
+    border-left:3px solid var(--accent); border-radius:7px; padding:12px 15px; overflow-x:auto; margin:12px 0; color:var(--ink)}
+  pre code{background:none; border:none; padding:0; font-size:inherit; color:inherit}
+
+  /* terminal (blocos com linguagem: bash/python) */
+  pre.term{font-family:var(--mono); font-size:13px; line-height:1.55; background:var(--term-bg); color:var(--term-ink);
+    padding:13px 15px; white-space:pre; margin:6px 0 14px; border:1px solid #000; border-radius:7px; overflow-x:auto;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.03)}
+  pre.term code{color:inherit; background:none}
+
+  /* tables */
+  .tablewrap{overflow-x:auto; margin:14px 0}
+  table{border-collapse:collapse; width:100%; font-size:13.5px}
+  th,td{padding:7px 11px; text-align:left; border-bottom:1px solid var(--rule-soft); vertical-align:top}
+  th{font-family:var(--sans); font-weight:600; font-size:11.5px; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--ink-faint); border-bottom:1px solid var(--rule)}
+  td{font-variant-numeric:tabular-nums}
+  td code{font-size:12px}
+  tbody tr:hover td{background:var(--surface)}
+
+  /* note (soft callout) */
+  .note{background:var(--surface); border:1px solid var(--rule); border-left:3px solid var(--gas);
+    padding:12px 15px; border-radius:7px; margin:14px 0; color:var(--ink-soft); font-size:14.5px}
+  .note strong{color:var(--ink)}
+
+  /* callouts (warn) */
+  .callout{background:var(--warn-bg); border:1px solid var(--warn-rule); border-left:3px solid var(--crit);
+    border-radius:7px; padding:12px 15px; margin:16px 0; font-size:14.5px}
+  .callout .ct{font-family:var(--sans); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--crit); margin:0 0 4px; font-weight:700; display:block}
+
+  /* architecture block (blocos sem linguagem: árvores ASCII) */
+  pre.arch{font-family:var(--mono); font-size:12.5px; background:var(--surface); border:1px solid var(--rule);
+    border-radius:7px; padding:15px; overflow-x:auto; white-space:pre; line-height:1.5; margin:14px 0; color:var(--ink)}
+  pre.arch code{color:inherit; background:none}
+
+  /* blockquote vira note */
+  blockquote{background:var(--surface); border:1px solid var(--rule); border-left:3px solid var(--bio);
+    padding:12px 15px; border-radius:7px; margin:14px 0; color:var(--ink-soft); font-size:14.5px}
+  blockquote p{margin:4px 0}
+
+  /* imagens */
+  img{max-width:100%; height:auto; border:1px solid var(--rule); border-radius:7px; margin:14px 0}
+  figure{margin:14px 0}
+  figcaption{font-size:12.5px; color:var(--ink-faint); margin-top:4px; text-align:center}
+
+  /* footer */
+  footer{margin-top:56px; padding-top:20px; border-top:1px solid var(--rule-soft); color:var(--ink-faint); font-size:12.5px}
+  footer .by{font-family:var(--serif); color:var(--ink-soft); font-size:13.5px; margin:0 0 2px}
+
+  @media (max-width:960px){
+    .doc{padding:0 0 60px}
+    h1.title{font-size:30px}
+    .part h2{font-size:24px}
+  }
+
+</style>
+</head>
+<body>
+<div class="shell">
+<nav class="toc">
+  <h4>Conteúdo</h4>
+  <ol>
+  <li><a href="#clonar-o-repositorio">§1 · Clonar o repositório</a></li><li><a href="#instalacao">§2 · Instalação</a></li><li><a href="#como-iniciar">§3 · Como iniciar</a></li><li><a href="#uso-rapido-cli">§4 · Uso rápido (CLI)</a><ol><li><a href="#comparacao-de-metodos-cli">Comparação de métodos (CLI)</a></li><li><a href="#casos-e-composicao-ch4co2-milestone-1">Casos e composição CH₄–CO₂ (Milestone 1)</a></li><li><a href="#misturas-multicomponente-e-simulacao-em-lote">Misturas multicomponente e simulação em lote</a></li><li><a href="#h2s-gas-acido-toxico-e-corrosivo">H₂S — gás ácido tóxico e corrosivo</a></li><li><a href="#estudos-parametricos-e-otimizacao">Estudos paramétricos e otimização</a></li><li><a href="#interface-grafica-gui">Interface gráfica (GUI)</a></li></ol></li><li><a href="#uso-como-scripts">§5 · Uso como scripts</a></li><li><a href="#uso-programatico">§6 · Uso programático</a></li><li><a href="#arquitetura">§7 · Arquitetura</a></li><li><a href="#tecnologias-implementadas">§8 · Tecnologias implementadas</a></li><li><a href="#validacao">§9 · Validação</a></li><li><a href="#desenvolvimento">§10 · Desenvolvimento</a></li><li><a href="#licenca">§11 · Licença</a></li>
+  </ol>
+</nav>
+<main class="doc">
+<header class="masthead">
+<p class="eyebrow">Manual de Ajuda · BioGasPy</p>
+<h1 class="title">BioGasSim <span class="mf">·</span> Upgrading de Biogás</h1>
+<p class="lede">Simulador científico de <strong>upgrading de biogás</strong> (remoção de CO₂) em Python, modular, orientado a objetos e de código aberto. Projeto, análise e comparação de processos de purificação para produção de biometano a partir de biogás <strong>47% CH₄ / 53% CO₂</strong>.</p>
+<div class="chips"><span class="chip ok">Water Scrubbing + MEA validados</span><span class="chip ok">Newton global · adiabático</span><span class="chip ">Peng-Robinson · Henry · Kent-Eisenberg</span><span class="chip ">GUI PySide6 / PyQt5</span><span class="chip ">CLI · casos · comparação de métodos</span></div>
+</header>
+<hr class="duo-rule">
+<section id="clonar-o-repositorio">
+<h2><span class="num">§1</span>Clonar o repositório</h2>
+
+<p>Requer <a href="https://git-scm.com/">Git</a> instalado.</p>
+<pre class="term"><code>git clone https://github.com/ileaof/biogaspy.git
+cd biogaspy
+</code></pre>
+<p>Sem Git? Use <strong>Code → Download ZIP</strong> na <a href="https://github.com/ileaof/biogaspy">página do repositório</a>
+e extraia. Em seguida, siga a <a href="#instalação">Instalação</a>.</p>
+
+</section>
+<section id="instalacao">
+<h2><span class="num">§2</span>Instalação</h2>
+
+<p>Recomenda-se um ambiente virtual:</p>
+<pre class="term"><code>python -m venv .venv
+# Windows:        .venv\Scripts\activate
+# Linux/macOS:    source .venv/bin/activate
+</code></pre>
+<pre class="term"><code>pip install -e .              # instala o pacote + o comando `biogassim`
+# extras opcionais:
+pip install -e &quot;.[gui]&quot;       # interface gráfica (PySide6)
+pip install -e &quot;.[excel]&quot;     # export para .xlsx (openpyxl)
+</code></pre>
+<p>Requer Python ≥ 3.10, numpy, scipy, matplotlib, pandas.</p>
+
+</section>
+<section id="como-iniciar">
+<h2><span class="num">§3</span>Como iniciar</h2>
+
+<p>Após a instalação, a <strong>linha de comando (CLI)</strong> fica disponível de duas formas
+equivalentes — use a que preferir:</p>
+<pre class="term"><code>biogassim &lt;comando&gt;            # comando de console (requer a pasta de scripts do
+                               # Python no PATH)
+python -m biogassim.cli &lt;comando&gt;   # sempre funciona, sem depender do PATH
+</code></pre>
+<p>Veja todos os comandos com <code>biogassim --help</code>. Para abrir a <strong>interface gráfica
+(GUI)</strong>: <code>biogassim gui</code> (detalhes na seção <a href="#interface-gráfica-gui">Interface gráfica</a>).
+Para gerar e abrir o <strong>manual de ajuda em HTML</strong>: <code>biogassim help</code> (ou
+<code>biogassim help --open</code> para abrir no navegador; <code>--rebuild</code> regenera a partir do
+README).</p>
+
+</section>
+<section id="uso-rapido-cli">
+<h2><span class="num">§4</span>Uso rápido (CLI)</h2>
+
+<pre class="term"><code>python -m biogassim.cli run-water          # lavagem com água (20 bar)
+python -m biogassim.cli run-mea            # lavagem química com MEA (2 bar)
+python -m biogassim.cli run-psa            # PSA (estimativa)
+python -m biogassim.cli run-membrane       # membrana (1 estágio)
+python -m biogassim.cli run-membrane-multi # membrana multi-estágio (reciclo/série)
+python -m biogassim.cli compare            # compara tecnologias (ver abaixo)
+</code></pre>
+<p>Resultados e gráficos são salvos em <code>examples_output/</code>.</p>
+<h3 id="comparacao-de-metodos-cli">Comparação de métodos (CLI)</h3>
+<p>O comando <code>compare</code> roda várias tecnologias de upgrading sob a <strong>mesma
+alimentação</strong> e devolve uma tabela padronizada (pureza, recuperação, remoção de
+CO₂/H₂S, energia elétrica/térmica, consumo de água/solvente, OPEX, custo
+específico, qualidade do gás tratado), ranking uni- e multi-critério e exportação.
+É o mesmo backend (<code>biogassim.comparison.ComparisonEngine</code>) que a aba de
+comparação da GUI — CLI e GUI produzem resultados numericamente idênticos.</p>
+<pre class="term"><code>biogassim compare                                # métodos recomendados, biogás 47/53
+biogassim compare water mea psa membrane         # só os métodos informados
+biogassim compare --case meu_projeto/case.json    # herda feed (composição/vazão) do caso
+biogassim compare --mode optimized --flow 200    # modo otimizado (otimiza antes de rodar)
+biogassim compare --export comparison.xlsx        # exporta relatório (.csv/.json/.html/.xlsx/.pdf)
+</code></pre>
+<p>Métodos disponíveis: <code>water</code>, <code>mea</code>, <code>dea</code>, <code>mdea</code>, <code>selexol</code>, <code>rectisol</code>,
+<code>psa</code>, <code>membrane</code>, <code>membrane-multi</code> (alias: <code>multi</code>). Os marcados como
+<em>Experimental</em> (DEA, Rectisol, PSA) são estimativas — aparecem, mas o conjunto
+<strong>Recomendados</strong> traz apenas os operacionais e representativos.</p>
+<p>Um método que falha (não converge/erro) é registrado como falha com a mensagem
+do solver, sem cancelar a comparação — os demais métodos seguem e aparecem na
+tabela.</p>
+<h3 id="casos-e-composicao-ch4co2-milestone-1">Casos e composição CH₄–CO₂ (Milestone 1)</h3>
+<p>Fluxo de trabalho baseado em <em>casos</em> (JSON) para estudar o efeito da composição
+binária CH₄–CO₂ sobre desempenho, dimensionamento e economia:</p>
+<pre class="term"><code>biogassim new meu_projeto --tech water          # cria projeto + case.json padrão
+biogassim set CH4=0.60 --case meu_projeto/case.json   # CO2 vira 0.40 (complemento)
+biogassim set CH4=46 CO2=53 H2S=1 --case meu_projeto/case.json  # ternário CH4-CO2-H2S
+biogassim run meu_projeto/case.json             # roda o caso, imprime dashboard
+biogassim run meu_projeto/case.json --max-h2s-ppm 4   # impõe limite de H2S no tratado
+biogassim props CH4=0.60 CO2=0.40 --P 20        # MM, Z, densidade, LHV/HHV, Wobbe, SG
+biogassim sweep CH4=0.20:0.95:0.05 --out sweep.csv    # estudo paramétrico de composição
+biogassim sweep H2S=0:0.05:0.005 --tech water   # varredura do contaminante H2S
+biogassim export results.xlsx --case meu_projeto/case.json
+biogassim report --case meu_projeto/case.json   # relatório HTML
+</code></pre>
+<p>A composição é sempre normalizada e validada. Para feed <strong>binário</strong> CH₄–CO₂ a
+fração complementar é atualizada automaticamente (mexer no CH₄ atualiza o CO₂);
+para feed <strong>multi-espécie</strong> (ex.: CH₄+CO₂+H₂S) todas as frações são
+normalizadas para somar 100%. O <code>sweep</code> varre a fração de CH₄ (<code>CH4=...</code>) <strong>ou</strong>
+do contaminante H₂S (<code>H2S=...</code>, mantendo a razão CH₄:CO₂) e tabela pureza,
+recuperação, remoção de CO₂/H₂S, perda de metano, consumo de solvente/água,
+energia, diâmetro/altura da coluna, perda de carga, margem de inundação, custo e
+qualidade do gás tratado — a base dos mapas de desempenho.</p>
+<h3 id="misturas-multicomponente-e-simulacao-em-lote">Misturas multicomponente e simulação em lote</h3>
+<p>A composição não é restrita a CH₄–CO₂: qualquer subconjunto dos gases
+<strong>CH₄, CO₂, N₂, O₂, H₂, H₂O, H₂S, NH₃, CO, Ar</strong> é aceito (adicionar espécies é
+só cadastrar em <code>Properties/components.py</code>, sem tocar no solver). A composição
+pode ser dada em <strong>fração molar, mássica ou volumétrica</strong>, ou como <strong>vazão molar
+ou mássica</strong> (<code>--basis mole|mass|volume|molar_flow|mass_flow</code>), sempre
+normalizada.</p>
+<pre class="term"><code>biogassim props CH4=0.72 CO2=0.25 N2=0.03 --P 20    # propriedades de qualquer mistura
+biogassim props CH4=0.5 CO2=0.5 --basis mass        # entrada em base mássica
+biogassim batch feeds.csv --tech water --out results.csv   # centenas/milhares de feeds
+</code></pre>
+<p>O <code>batch</code> lê um CSV (uma linha por alimentação; colunas = espécies, + opcionais
+<code>name</code>, <code>T_K</code>, <code>P_bar</code>, <code>basis</code>, <code>technology</code>) e calcula as propriedades de cada
+mistura; com <code>--tech</code>, roda também o upgrading e reporta a remoção por espécie.</p>
+<p><strong>Absorção de gases ácidos (water scrubbing):</strong> a água absorve, além do CO₂, o
+<strong>H₂S</strong> (≈3× mais solúvel — removido preferencialmente) e o <strong>NH₃</strong> (muito
+solúvel), enquanto <strong>N₂/O₂/H₂/Ar/CO</strong> passam praticamente direto. A remoção é
+reportada por espécie (<code>H2S_removal</code>, <code>NH3_removal</code>, <code>N2_removal</code>, …). O
+<strong>equilíbrio gás-líquido</strong> usa Lei de Henry com dependência de temperatura (van't
+Hoff); a <strong>equação de estado</strong> (Peng-Robinson) estende-se ao ternário CH₄–CO₂–H₂S
+com <strong>parâmetros de interação binária (kij) não-nulos</strong> armazenados em
+<code>Thermodynamics/Interactions.py</code> (CH₄–CO₂≈0,092, CH₄–H₂S≈0,083, CO₂–H₂S≈0,097).
+A coluna resolve o transporte acoplado das três espécies ao longo dos estágios.</p>
+<p>Após o upgrading, o simulador reporta a <strong>qualidade do gás tratado</strong>:
+composição (CH₄/CO₂/H₂S), poder calorífico (LHV/HHV), Índice de Wobbe, densidade
+e densidade relativa, além da <strong>concentração residual de H₂S</strong> (mol% e ppm) e do
+<strong>carregamento de H₂S na fase líquida</strong> (mol H₂S/mol solvente). Nas <strong>aminas
+(MEA)</strong>, a absorção <strong>reativa</strong> de H₂S/NH₃ ainda é roadmap — o modelo de amina
+trata só CH₄/CO₂.</p>
+<h3 id="h2s-gas-acido-toxico-e-corrosivo">H₂S — gás ácido tóxico e corrosivo</h3>
+<p>O <strong>sulfeto de hidrogênio (H₂S)</strong> está presente em praticamente todo biogás
+(digestão anaeróbia de proteínas/sulfetos), tipicamente 50–4.000 ppm, podendo
+chegar a % em aterros/corrosivos. É <strong>altamente tóxico</strong> (IDLH 50 ppm, TLV-TWA
+ACGIH 1 ppm), <strong>corrosivo</strong> (ataca aço, concretos e lubrificantes) e odorante
+(o limiar olfativo é ~0,0005 ppm, mas o olfato fadiga rapidamente em
+concentrações maiores — o "silêncio" não significa segurança).</p>
+<p>No <strong>water scrubbing</strong>, o H₂S é <strong>mais solúvel em água que o CO₂</strong> (H_H₂S &lt; H_CO₂),
+sendo removido preferencialmente no mesmo contato, mas parte acompanha o gás
+tratado conforme a razão L/V e a pressão. O efeito sobre o processo:</p>
+<ul>
+<li><strong>Recuperação de CH₄</strong> — levemente reduzida (a absorção de H₂S dilui o
+  solvente e compete com CO₂, e algum CH₄ é co-absorvido).</li>
+<li><strong>Remoção de CO₂</strong> — pouco afetada (H₂S é traço frente ao CO₂).</li>
+<li><strong>Equipamento</strong> — o efluente líquido carregado de H₂S é <strong>corrosivo</strong> e exige
+  <em>stripping</em> + tratamento antes do descarte/reuso; o gás tratado deve atender
+  ao limite de H₂S do destino (motor ≤ ~10 ppm; gasoduto ≤ ~4 ppm).</li>
+</ul>
+<p><strong>Segurança no simulador:</strong> sempre que H₂S está presente na alimentação, o
+software emite avisos distinguindo <strong>feed / gás tratado / fase líquida</strong>, e o
+limite máximo admissível de H₂S no gás tratado é <strong>configurável</strong> (<code>--max-h2s-ppm</code>
+na CLI, campo na GUI; <code>biogassim.safety.set_max_h2s_treated_ppm</code>). O simulador
+<strong>nunca</strong> classifica silenciosamente um gás com H₂S significativo como adequado
+para motor — a decisão <code>engine_suitable</code> é explícita.</p>
+<h3 id="estudos-parametricos-e-otimizacao">Estudos paramétricos e otimização</h3>
+<p>Superfícies de resposta (1-D ou 2-D) sobre qualquer combinação de <strong>composição</strong>
+(<code>CH4</code>) e <strong>variáveis operacionais</strong> (<code>P_bar</code>, <code>L_over_V</code>, <code>N_stages</code>,
+<code>height_m</code>, <code>flow_mols</code>), coletando o conjunto completo de métricas:</p>
+<pre class="term"><code>biogassim sensitivity L_over_V=40:120:20 --tech water --out curva.csv
+biogassim sensitivity P_bar=5:30:5 --vary L_over_V=20:120:20 \
+          --metric recovery_CH4 --out surf.csv --plot surf.png    # heatmap 2-D
+</code></pre>
+<p>A <strong>otimização</strong> faz busca em grade sob restrições (JSON de especificação):</p>
+<pre class="term"><code>biogassim optimize optimization.json --out best.json
+</code></pre>
+<pre class="term"><code>{
+  &quot;technology&quot;: &quot;water&quot;,
+  &quot;objective&quot;: &quot;specific_kWh_per_Nm3&quot;,
+  &quot;goal&quot;: &quot;minimize&quot;,
+  &quot;variables&quot;: {&quot;L_over_V&quot;: [40, 120, 40], &quot;P_bar&quot;: [10, 25, 5]},
+  &quot;constraints&quot;: {&quot;purity_CH4&quot;: [&quot;&gt;=&quot;, 99.9], &quot;recovery_CH4&quot;: [&quot;&gt;=&quot;, 90]}
+}
+</code></pre>
+<p>→ acha a condição de <strong>menor energia específica</strong> que satisfaz pureza ≥ 99,9% e
+recuperação ≥ 90% (ex.: L/V=120, P=15 bar → 0,48 kWh/Nm³).</p>
+<h3 id="interface-grafica-gui">Interface gráfica (GUI)</h3>
+<p><img alt="Interface gráfica do BioGasSim: editor interativo de composição CH₄–CO₂, condições operacionais, resultados e mapa de desempenho" src="images/gui.png"></p>
+<p>Instale o extra da GUI (uma vez) e abra a janela principal:</p>
+<pre class="term"><code>pip install -e &quot;.[gui]&quot;        # instala PySide6 (alternativamente, tenha PyQt5)
+biogassim gui                  # abre a janela principal
+</code></pre>
+<p>Três formas equivalentes de iniciar a GUI — use qualquer uma:</p>
+<pre class="term"><code>biogassim gui                  # comando de console
+python -m biogassim.cli gui    # via a CLI (se `biogassim` não estiver no PATH)
+python -m biogassim.gui.app    # inicia o pacote da GUI diretamente
+</code></pre>
+<p>Num desktop normal (Windows/macOS/Linux) a janela abre com fontes normais —
+<strong>não</strong> defina <code>QT_QPA_PLATFORM=offscreen</code> (isso é apenas para testes headless).</p>
+<h4 id="como-usar-a-gui">Como usar a GUI</h4>
+<p>A GUI (PySide6 preferido, PyQt5 alternativo — via shim) é a camada interativa
+sobre o mesmo motor de simulação da CLI. A janela tem cinco áreas (a aba
+<em>Simulação</em> tem barra de rolagem própria, então todo o conteúdo permanece
+acessível com a janela reduzida):</p>
+<ul>
+<li><strong>Condições operacionais</strong> (topo, à esquerda) — escolha a <strong>tecnologia</strong>
+  (<code>water</code> ou <code>mea</code>) e ajuste vazão do biogás, pressão, razão L/V, número de
+  estágios e altura da coluna. Trocar a tecnologia carrega os valores padrão
+  correspondentes.</li>
+<li><strong>Composição da alimentação</strong> (meio, à esquerda) — defina a mistura
+  <strong>CH₄/CO₂/H₂S</strong> por um <strong>preset</strong> (biogás 47/53/0, biogás c/ 1–5% H₂S,
+  digestor 60/40, metano puro), pelos <strong>campos numéricos em %</strong> ou pelos
+  <strong>sliders</strong>. A composição é normalizada: editar um componente redistribui o
+  restante entre os outros dois preservando a razão atual (mexer no H₂S mantém a
+  proporção CH₄:CO₂). O total é sempre mostrado e validado contra 100%. O bloco
+  <strong>Propriedades da mistura</strong> recalcula em tempo real: massa molar, fator Z,
+  densidade (a T,P) e normal, PCI/PCS (LHV/HHV), Índice de Wobbe e densidade
+  relativa ao ar — agora incluindo a contribuição do H₂S.</li>
+<li><strong>Segurança H₂S</strong> (logo abaixo da composição) — banner que acende sempre que
+  há H₂S na alimentação (tóxico/corosivo), com o <strong>limite máximo admissível de
+  H₂S no gás tratado</strong> configurável em ppm. Após <em>Executar caso</em>, mostra a
+  concentração de H₂S no gás tratado, o carregamento líquido e a decisão de
+  adequação para motor (SIM/NÃO).</li>
+<li><strong>Solver</strong> (base, à esquerda) — <strong>Executar caso</strong> roda a simulação com a
+  composição e as condições atuais; <strong>Varrer H₂S</strong> roda o estudo paramétrico do
+  contaminante. A linha de status logo abaixo é o <strong>monitor de convergência</strong>
+  (convergiu?, número de iterações, pureza e recuperação).</li>
+<li><strong>Resultados</strong> (à direita) — tabela com pureza de CH₄, recuperação, remoção de
+  CO₂, <strong>remoção de H₂S</strong> e <strong>H₂S no gás tratado (ppm)</strong>, perda de metano,
+  consumo de solvente/água, energia, diâmetro e altura da coluna, margem de
+  inundação, Wobbe do gás tratado e custo específico.</li>
+<li><strong>Mapa de desempenho</strong> (base, à direita) — gráfico de remoção de H₂S,
+  recuperação de CH₄ e remoção de CO₂ em função da fração de H₂S na alimentação.</li>
+</ul>
+<p><strong>Fluxo típico de uso:</strong></p>
+<ol>
+<li>Escolha a <strong>tecnologia</strong> no painel de condições operacionais.</li>
+<li>Defina a <strong>composição</strong> (preset, campo <code>%</code> ou slider) — as propriedades da
+   mistura são atualizadas a cada mudança; o banner de segurança acende se houver
+   H₂S.</li>
+<li>Ajuste as <strong>condições operacionais</strong> (pressão, L/V, estágios, altura).</li>
+<li>Clique em <strong>Executar caso</strong> — as métricas aparecem na tabela de resultados, o
+   status mostra a convergência e o banner de segurança atualiza com o H₂S
+   tratado e a adequação para motor.</li>
+<li>Clique em <strong>Varrer H₂S</strong> — o mapa de desempenho mostra como a remoção de H₂S, a
+   recuperação de CH₄ e a remoção de CO₂ variam na faixa de 0–5 mol% de H₂S.</li>
+</ol>
+<p>Todos os cálculos reutilizam o mesmo núcleo da CLI (<code>biogassim.cases</code>); portanto,
+para as mesmas entradas, GUI e CLI produzem resultados idênticos.</p>
+<p>A barra de menu tem <strong>Ajuda</strong> → <em>Manual de Ajuda (HTML)</em> (abre <code>docs/HELP.html</code>
+no navegador, gerando-o a partir deste README se necessário) e <em>Sobre o BioGasPy</em>
+(autoria/afiliação).</p>
+<h4 id="aba-comparacao-de-metodos">Aba "Comparação de Métodos"</h4>
+<p>A janela principal tem <strong>duas abas</strong>: <em>Simulação</em> (acima) e <strong>Comparação de
+Métodos</strong>. A segunda compara as tecnologias de upgrading lado a lado usando
+o <strong>mesmo backend</strong> que <code>biogassim compare</code> (<code>biogassim.comparison.ComparisonEngine</code>)
+— nenhuma termodinâmica é duplicada na GUI, apenas apresentação.</p>
+<p>Para facilitar a visualização, a aba <em>Comparação de Métodos</em> é dividida em
+<strong>duas sub-abas</strong>:</p>
+<ul>
+<li><strong>Configuração</strong> — condições de alimentação herdadas (somente leitura),
+  seleção de métodos, modo (Padrão/Otimizado), parâmetros por tecnologia e
+  botões <strong>Executar</strong> / <strong>Parar</strong> / <strong>Salvar config</strong> / <strong>Carregar config</strong>.</li>
+<li><strong>Resultados</strong> — tabela comparativa, gráfico de barras e ranking/decisão,
+  com o botão <strong>Exportar</strong>. Ganha a tela inteira (em vez de dividi-la com os
+  controles). Ao concluir a comparação a GUI troca automaticamente para esta
+  sub-aba.</li>
+</ul>
+<p>Cada sub-aba tem sua <strong>própria barra de rolagem</strong> (QScrollArea independente),
+de modo que todo o conteúdo permanece acessível mesmo com a janela reduzida ou
+com muitos métodos selecionados / muitos resultados exibidos.</p>
+<p><strong>Sub-aba Configuração:</strong></p>
+<ul>
+<li><strong>Condições herdadas (somente leitura)</strong> — a alimentação (CH₄/CO₂/H₂S, vazão,
+  pressão, T, modelo termodinâmico) vem da aba <em>Simulação</em>, sem reentrada. Quando
+  o feed muda, o cabeçalho é atualizado e os resultados anteriores ficam marcados
+  como <strong>desatualizados</strong> (⚠ "Condições de alimentação alteradas — rode a
+  comparação novamente").</li>
+<li><strong>Seleção de métodos</strong> — <em>checkboxes</em> por tecnologia + botões <em>Selecionar
+  tudo</em> / <em>Limpar</em> / <em>Recomendados</em>. Métodos experimentais aparecem rotulados.</li>
+<li><strong>Modo</strong> — <em>Padrão</em> (parâmetros predefinidos) ou <em>Otimizado</em> (a engine otimiza a
+  variável principal de cada tecnologia antes de rodar).</li>
+<li><strong>Parâmetros por tecnologia</strong> — área expansível: cada método selecionado
+  mostra seus parâmetros operacionais (água: P/L/V/N/altura; aminas: +concentração;
+  PSA: adsorvente/pressões; membranas: material/pressões/área/estágios).</li>
+<li><strong>Execução</strong> — roda em <em>thread separada</em> (a GUI continua responsiva), com
+  botões <strong>Executar</strong> / <strong>Parar</strong> e um monitor de progresso por método
+  (corrente / concluído / falhou). Um método que falha não derruba a comparação.</li>
+<li><strong>Salvar / Carregar config</strong> — salva e recarrega a configuração de comparação
+  (métodos, parâmetros, modo, pesos) em JSON. A configuração também viaja no
+  arquivo de projeto (campo <code>comparison</code> do caso) quando salva pela CLI/<code>cases</code>.</li>
+</ul>
+<p><strong>Sub-aba Resultados:</strong></p>
+<ul>
+<li><strong>Tabela de resultados</strong> — uma linha por método, ~24 colunas (pureza,
+  recuperação, remoção CO₂/H₂S, perda CH₄, vazão do produto, consumo de
+  água/solvente, energia elétrica/térmica/total, energia específica, pressão de
+  operação, altura/diâmetro da coluna, eficiência global, OPEX, custo específico,
+  LHV/HHV/Wobbe do gás tratado, H₂S no gás tratado, convergiu), com ordenação e
+  menu de visibilidade de colunas.</li>
+<li><strong>Gráfico comparativo</strong> — barras por métrica (dropdown "Comparar por").</li>
+<li><strong>Ranking</strong> — <em>melhor método por critério</em> + ranking <strong>multi-critério ponderado</strong>
+  com pesos editáveis (pureza, recuperação, energia, custo, água).</li>
+<li><strong>Exportar</strong> — exporta o relatório completo
+  (.csv/.json/.html/.xlsx/.pdf); ao concluir a comparação a GUI troca
+  automaticamente para esta sub-aba.</li>
+</ul>
+
+</section>
+<section id="uso-como-scripts">
+<h2><span class="num">§5</span>Uso como scripts</h2>
+
+<pre class="term"><code>python -m biogassim.Examples.WaterScrubbing
+python -m biogassim.Examples.MEA
+python -m biogassim.Examples.MembraneMultiStage   # 1 vs 2-estágios+reciclo vs série
+python -m biogassim.Examples.CompareAll
+</code></pre>
+
+</section>
+<section id="uso-programatico">
+<h2><span class="num">§6</span>Uso programático</h2>
+
+<pre class="term"><code>from biogassim.UnitOperations import Stream, Absorber, AbsorberSpec
+from biogassim.Solvents import WaterSolvent
+
+species = [&quot;CH4&quot;, &quot;CO2&quot;, &quot;H2O&quot;]
+gas = Stream.make(species, [0.47, 0.53, 0.0], flow=100.0, T=298.15, P=20e5, phase=&quot;vapor&quot;)
+solv = Stream.make(species, [0.0, 0.0, 1.0], flow=10000.0, T=293.15, P=20e5, phase=&quot;liquid&quot;)
+spec = AbsorberSpec(N_stages=12, packing=&quot;Pall_50&quot;, mode=&quot;isothermal&quot;,
+                    T_op=293.15, pressure=20e5, height=15.0)
+r = Absorber(gas, solv, WaterSolvent(), spec).solve()
+print(r.purity_CH4, r.methane_recovery, r.CO2_removal, r.diameter)
+</code></pre>
+
+</section>
+<section id="arquitetura">
+<h2><span class="num">§7</span>Arquitetura</h2>
+
+<pre class="arch"><code>biogassim/
+  Core/             constantes, unidades, solver numérico, convergência
+  Thermodynamics/   EOS (Peng-Robinson, SRK), Lei de Henry, fugacidade, flash,
+                    parâmetros de interação binária kij (Interactions.py)
+  Properties/       banco de componentes (CH4, CO2, H2O, N2, H2S, MEA, DEA, MDEA)
+  MassTransfer/     difusão, teoria dos dois filmes, correlações (Re, Sc, Sh, HTU/NTU)
+  Hydraulics/       recheios, flooding, perda de carga, diâmetro
+  UnitOperations/   Absorvedor (estágios de equilíbrio), Stripper, Compressor, ...
+  Solvents/         água (físico), MEA/DEA/MDEA (químico), Selexol, Rectisol
+  PSA/              isoteras (Langmuir/Toth), ciclo PSA
+  Membranes/        permeabilidades, modelo solução-difusão
+  Optimization/     energia, economia, sensibilidade
+  Export/           CSV, JSON, Excel, HTML (+ stubs PDF/Tecplot/VTK)
+  Reporting/        gráficos (matplotlib) + gerador do manual HTML (help_html.py)
+  Examples/         casos prontos
+  cli.py            linha de comando
+  cases.py          casos JSON, validação, execução, varreduras (CH4, H2S)
+  comparison.py     ComparisonEngine — compara tecnologias sob o mesmo feed
+                    (backend compartilhado por `biogassim compare` e pela GUI)
+  safety.py         segurança H2S (avisos, limite configurável, adequação p/ motor)
+  dashboard.py      formatação de resultados (feed/upgraded/performance/safety)
+  gui/              GUI PySide6/PyQt5 (main_window + aba comparison_tab)
+tests/              pytest
+docs/               documentação (ARCHITECTURE.md, ROADMAP.md, HELP.html, images/)
+</code></pre>
+<p>Ver <a href="ARCHITECTURE.md"><code>docs/ARCHITECTURE.md</code></a> e <a href="ROADMAP.md"><code>docs/ROADMAP.md</code></a>.</p>
+
+</section>
+<section id="tecnologias-implementadas">
+<h2><span class="num">§8</span>Tecnologias implementadas</h2>
+
+<table>
+<thead>
+<tr>
+<th>Tecnologia</th>
+<th>Estado</th>
+<th>Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Water Scrubbing</td>
+<td>✅ funcional</td>
+<td>alta pressão, água recirculada</td>
+</tr>
+<tr>
+<td>MEA (amina química)</td>
+<td>✅ funcional</td>
+<td>baixa pressão, reboiler; Kent-Eisenberg calibrado (Aronu 2011)</td>
+</tr>
+<tr>
+<td>DEA / MDEA</td>
+<td>✅ / ~</td>
+<td>Kent-Eisenberg rigoroso; MDEA calibrado (VLE, Huttenhuis 2007), DEA a calibrar</td>
+</tr>
+<tr>
+<td>Selexol / Rectisol</td>
+<td>✅ funcional</td>
+<td>solventes físicos (Henry), calibrados vs. literatura</td>
+</tr>
+<tr>
+<td>PSA</td>
+<td>~ estimativa</td>
+<td>isoterma + seletividade; ciclo dinâmico = roadmap</td>
+</tr>
+<tr>
+<td>Membranas</td>
+<td>✅ 1 e multi-estágio</td>
+<td>mistura completa (resolve θ); 1 estágio, 2-estágios + reciclo, cascata em série</td>
+</tr>
+<tr>
+<td><strong>Comparação de métodos</strong></td>
+<td>✅ CLI + GUI</td>
+<td><code>biogassim compare</code> / aba <em>Comparação de Métodos</em>: mesmo backend (<code>ComparisonEngine</code>), tabela, ranking, energia/economia, export</td>
+</tr>
+</tbody>
+</table>
+
+</section>
+<section id="validacao">
+<h2><span class="num">§9</span>Validação</h2>
+
+<p>Comparações contra literatura (ver <code>tests/test_validation.py</code>):</p>
+<ul>
+<li>Solubilidade de CO₂ em água a 25 °C (0,034 mol/(L·atm)) e fatores de
+  compressibilidade (Z) via Peng-Robinson.</li>
+<li>Equilíbrio MEA vs. Aronu (2011) e MDEA vs. Huttenhuis et al. (2007).</li>
+<li>Solventes físicos (Selexol/Rectisol) vs. dados de solubilidade
+  (Henni 2005, Décultot 2019, Leu &amp; Robinson 1992).</li>
+<li>Fechamento de balanço de massa do flash e do absorvedor (~1e-9 ou melhor).</li>
+</ul>
+<p>Validação sistemática contra Aspen Plus/DWSIM é meta futura (ROADMAP).</p>
+
+</section>
+<section id="desenvolvimento">
+<h2><span class="num">§10</span>Desenvolvimento</h2>
+
+<pre class="term"><code>pip install -e &quot;.[dev,excel,gui]&quot;   # pytest, pytest-cov, ruff, openpyxl, PySide6
+pytest -q                       # roda os 251 testes (GUI é pulada sem Qt instalado)
+pytest --cov=biogassim          # com cobertura
+ruff check biogassim tests      # lint
+ruff check --fix biogassim tests   # corrige o que for auto-corrigível
+</code></pre>
+<p>A integração contínua (GitHub Actions, <code>.github/workflows/ci.yml</code>) roda lint e testes
+em Python 3.10, 3.11 e 3.12 a cada push e pull request.</p>
+
+</section>
+<section id="licenca">
+<h2><span class="num">§11</span>Licença</h2>
+
+<p>MIT — ver <a href="../LICENSE"><code>LICENSE</code></a>.</p>
+</section>
+
+<footer>
+<p class="by"><strong>BioGasPy — Thermodynamic Gas Upgrading Simulator</strong></p>
+<p>Prof. Dr. Ivaldo Leão Ferreira · Federal University of Pará — UFPA · Faculty of Mechanical Engineering</p>
+<p>FEM-ITEC-UFPA 2026 · Gerado a partir do <code>README.md</code> via <code>biogassim.Reporting.help_html</code>.</p>
+</footer>
+</main>
+</div>
+<script>
+const links=[...document.querySelectorAll('.toc a')];
+const secs=[...document.querySelectorAll('section[id]')];
+const obs=new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting){
+    const id=e.target.id; links.forEach(l=>l.classList.toggle('active',l.getAttribute('href')==='#'+id));
+  }});
+},{rootMargin:'-10% 0px -75% 0px'});
+secs.forEach(s=>obs.observe(s));
+</script>
+</body>
+</html>

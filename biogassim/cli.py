@@ -457,6 +457,25 @@ def _cmd_gui(args):
     raise SystemExit(gui_main())
 
 
+def _cmd_help(args):
+    """Gera (se ausente) e localiza o manual HTML; --open abre no navegador."""
+    import pathlib
+
+    from .Reporting.help_html import build_help_html
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    path = root / "docs" / "HELP.html"
+    if not path.exists() or args.rebuild:
+        path = build_help_html(out=path)
+        print(f"Manual (re)gerado: {path}")
+    else:
+        print(f"Manual disponível: {path}")
+    print("Abra no navegador ou rode: biogassim help --open")
+    if args.open:
+        import webbrowser
+        webbrowser.open(path.as_uri())
+
+
 def _cmd_report(args):
     from . import cases, dashboard, safety
     from .Export import export_html
@@ -600,6 +619,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     pg = sub.add_parser("gui", help="Abrir a interface gráfica (PySide6/PyQt5)")
     pg.set_defaults(func=_cmd_gui)
+    ph = sub.add_parser("help", help="Gerar/localizar o manual HTML (docs/HELP.html)")
+    ph.add_argument("--open", action="store_true", help="abrir no navegador padrão")
+    ph.add_argument("--rebuild", action="store_true", help="regenerar a partir do README")
+    ph.set_defaults(func=_cmd_help)
     return p
 
 
