@@ -140,6 +140,123 @@ recuperação, remoção de CO₂/H₂S, perda de metano, consumo de solvente/á
 energia, diâmetro/altura da coluna, perda de carga, margem de inundação, custo e
 qualidade do gás tratado — a base dos mapas de desempenho.
 
+#### Exemplo completo (CLI): biogás CH₄–CO₂–H₂S
+
+Fluxo ponta-a-ponta com comandos encadeados: cria o projeto, define a composição
+(binária → ternária com H₂S), roda o caso com e sem limite de H₂S no tratado,
+calcula propriedades da mistura, faz as duas varreduras (composição e
+contaminante) e exporta resultados/relatório. As saídas abaixo são reais.
+
+```bash
+biogassim new meu_projeto --tech water          # 1) cria projeto + case.json padrão
+```
+```
+Projeto criado em 'meu_projeto'
+  Caso padrão: meu_projeto\case.json
+  Resultados : meu_projeto/results/
+```
+
+```bash
+biogassim set CH4=0.60 --case meu_projeto/case.json   # 2) binário: CO2 vira 0.40 (complemento)
+```
+```
+Caso salvo em 'meu_projeto/case.json'
+  Composicao da alimentacao (normalizada para 100%):
+    CH4    60.000 %
+    CO2    40.000 %
+    TOTAL 100.000 %  [OK]
+  Tecnologia : water
+  Operacional: {'P_bar': 20.0, 'L_over_V': 100.0, 'N_stages': 12, 'height_m': 15.0}
+```
+
+```bash
+biogassim set CH4=46 CO2=53 H2S=1 --case meu_projeto/case.json  # 3) ternário CH4-CO2-H2S
+```
+```
+Caso salvo em 'meu_projeto/case.json'
+  Composicao da alimentacao (normalizada para 100%):
+    CH4    46.000 %
+    CO2    53.000 %
+    H2S     1.000 %
+    TOTAL 100.000 %  [OK]
+```
+
+```bash
+biogassim run meu_projeto/case.json             # 4) roda o caso, imprime dashboard
+```
+```
+FEED GAS          |  UPGRADED GAS
+CH4   46.00 %     |  CH4  100.00 %    CO2   53.00 %     |  CO2    0.00 %    H2S    1.00 %     |  H2S    0.0000 % (0.0 ppm)
+PERFORMANCE
+  CH4 Recovery 92.61 %   CO2 Removal 100.00 %   H2S Removal 100.00 %
+  Water 648.0 m3/h   Energy 0.567 kWh/Nm3
+GAS QUALITY (treated): LHV 35.790  HHV 39.720  Wobbe 53.370  Density 0.716  Rel.Dens. 0.554
+SAFETY -- H2S: gas tratado ~0 ppm | liquido 0.00010 mol H2S/mol | Engine-suitable (<=10 ppm): YES
+RUN -- meu_projeto [water]  convergiu=True iter=7
+```
+
+```bash
+biogassim run meu_projeto/case.json --max-h2s-ppm 4   # 5) impõe limite de H2S no tratado (4 ppm)
+```
+```
+...
+SAFETY -- H2S: Engine-suitable (H2S <= 4.0 ppm): YES
+RUN -- meu_projeto [water]  convergiu=True iter=7
+```
+
+```bash
+biogassim props CH4=0.60 CO2=0.40 --P 20        # 6) MM, Z, densidade, LHV/HHV, Wobbe, SG
+```
+```
+PROPRIEDADES DA MISTURA
+  basis                 : mole     T_K  : 298.15    P_bar: 20.0
+  x_CH4: 0.6000   x_CO2: 0.4000
+  molar_mass_g_per_mol   : 27.2298
+  Z                      : 0.9366
+  density_kg_per_Nm3     : 1.2149
+  LHV_MJ_per_Nm3         : 21.4770   HHV_MJ_per_Nm3 : 23.8320
+  Wobbe_index_MJ_per_Nm3: 24.5800   specific_gravity: 0.9401
+```
+
+```bash
+biogassim sweep CH4=0.20:0.95:0.05 --out sweep.csv    # 7) estudo paramétrico de composição
+```
+```
+VARREDURA DE COMPOSICAO -- water (CH4 20%..95%)
+  CH4%   Pur%    Rec%   CO2r%      kW   kWh/Nm3  D(m)  Flood%
+  20.0  100.00  88.19  100.00  1946.6   1.369   1.07   70.0
+  40.0  100.00  92.15  100.00  1946.6   0.655   1.43   70.0
+  60.0  100.00  93.47   99.99  1946.6   0.430   1.70   70.0
+  80.0   99.98  94.12   99.91  1946.6   0.321   1.92   70.0
+  95.0   99.98  94.44   99.62  1946.6   0.269   2.06   70.0
+Exportado: sweep.csv
+```
+
+```bash
+biogassim sweep H2S=0:0.05:0.005 --tech water   # 8) varredura do contaminante H2S
+```
+```
+VARREDURA DE H2S -- water (H2S 0.0..5.0 mol%)
+  H2S% H2Srem%   Pur%    Rec%   CO2r% H2St_ppm     kW  kWh/Nm3  Water
+  0.00      -  100.00  92.74  100.00     0.0  1946.6   0.554  648.0
+  1.00 100.00  100.00  92.65  100.00     0.0  1946.6   0.560  648.0
+  3.00 100.00  100.00  92.46  100.00     0.0  1946.6   0.573  648.0
+  5.00 100.00  100.00  92.27  100.00     0.0  1946.6   0.586  648.0
+```
+
+```bash
+biogassim export results.xlsx --case meu_projeto/case.json   # 9) exporta resultados
+biogassim report --case meu_projeto/case.json               # 10) relatório HTML
+```
+```
+Exportado: results.xlsx  (caso 'meu_projeto', water)
+Relatorio HTML: meu_projeto_report.html
+```
+
+Os arquivos `meu_projeto/case.json`, `sweep.csv`, `results.xlsx` e
+`meu_projeto_report.html` são gravados no diretório corrente; o `results/` do
+projeto recebe as saídas por caso.
+
 ### Misturas multicomponente e simulação em lote
 
 A composição não é restrita a CH₄–CO₂: qualquer subconjunto dos gases
