@@ -63,3 +63,10 @@ Thumbs.db
 # --- Temporary / scratch files ---
 _hutt.txt
 *.tmp
+
+# --- CLI scratch outputs (regeneráveis ao rodar o exemplo do README) ---
+/meu_projeto/
+/sweep.csv
+/results.xlsx
+/meu_projeto_report.html
+Examples/tests/
