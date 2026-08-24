@@ -84,6 +84,9 @@ def validate_case(case: Case) -> Case:
 
 
 def save_case(case: Case, path: str) -> str:
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(asdict(case), f, indent=2, ensure_ascii=False)
     return path

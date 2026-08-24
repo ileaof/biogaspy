@@ -38,6 +38,17 @@ def test_save_load_roundtrip(tmp_path):
     assert c2.feed["CH4"] == pytest.approx(c.feed["CH4"])
 
 
+def test_save_case_creates_parent_dir(tmp_path):
+    """save_case deve criar o diretório-pai quando ele não existe (ex.: `biogassim set
+    ... --case subdir/case.json`)."""
+    c = cases.default_case(name="t", technology="water")
+    p = tmp_path / "novo_projeto" / "case.json"
+    assert not p.parent.exists()
+    cases.save_case(c, str(p))
+    assert p.exists()
+    assert cases.load_case(str(p)).name == "t"
+
+
 def test_new_project_scaffold(tmp_path):
     proj = tmp_path / "proj"
     cases.new_project(str(proj))
