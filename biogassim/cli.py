@@ -67,8 +67,88 @@ def _cmd_run_membrane_multi(args):
 
 
 def _cmd_compare(args):
-    from .Examples import CompareAll
-    CompareAll.main()
+    """Compara tecnologias via ComparisonEngine (mesmo backend da GUI).
+
+      biogassim compare                       # métodos recomendados, biogás 47/53
+      biogassim compare water mea psa membrane # só os métodos informados
+      biogassim compare --case meu_projeto/case.json      # herda feed do caso
+      biogassim compare --export comparison.xlsx           # exporta relatório
+      biogassim compare --mode optimized --flow 200        # modo otimizado
+    """
+    import os
+
+    from . import cases
+    from .comparison import (
+        METHODS,
+        ComparisonConfig,
+        ComparisonEngine,
+        export_comparison,
+        recommended_methods,
+    )
+
+    # feed: herda de --case se informado, senão biogás 47/53
+    if args.case and os.path.exists(args.case):
+        case = cases.load_case(args.case)
+        feed = {k: v for k, v in case.feed.items() if k != "flow_mols"}
+        flow = case.feed.get("flow_mols", 100.0)
+    else:
+        feed = {"CH4": 0.47, "CO2": 0.53}
+        flow = 100.0
+    if args.flow is not None:
+        flow = args.flow
+
+    # métodos: args.methods (alias curtos) ou recomendados
+    aliases = {"water": "water", "mea": "mea", "dea": "dea", "mdea": "mdea",
+               "selexol": "selexol", "rectisol": "rectisol", "psa": "psa",
+               "membrane": "membrane", "membrane-multi": "membrane_multi",
+               "multi": "membrane_multi"}
+    if args.methods:
+        selected = []
+        for m in args.methods:
+            key = aliases.get(m.lower(), m.lower())
+            if key not in METHODS:
+                raise SystemExit(f"Método desconhecido: '{m}'. Disponíveis: "
+                                 f"{', '.join(METHODS)}.")
+            selected.append(key)
+    else:
+        selected = recommended_methods()
+
+    cfg = ComparisonConfig(selected=selected, mode=args.mode)
+    eng = ComparisonEngine(feed, flow=flow, config=cfg)
+    rows = eng.run()
+
+    # tabela no terminal
+    print("=" * 92)
+    print(f"COMPARAÇÃO -- feed {', '.join(f'{k}={v*100:.1f}%' for k, v in feed.items())}"
+          f"  flow={flow} mol/s  modo={args.mode}")
+    print("=" * 92)
+    hdr = (f"{'Método':<24}{'Conv':>5}{'Pureza%':>8}{'Recup%':>8}{'CO2r%':>7}"
+           f"{'H2Sr%':>7}{'kW':>9}{'kWh/Nm³':>9}{'USD/Nm³':>9}")
+    print(hdr)
+    print("-" * 92)
+    for r in rows:
+        def f(v, w, d=2):
+            return (f"{v:>{w}.{d}f}" if isinstance(v, (int, float)) and v is not None
+                    else f"{'-':>{w}}")
+        print(f"{str(r.get('method_label')):<24}{'S' if r.get('converged') else 'N':>5}"
+              f"{f(r.get('purity_CH4'), 8)}{f(r.get('recovery_CH4'), 8)}"
+              f"{f(r.get('CO2_removal'), 7)}{f(r.get('H2S_removal'), 7)}"
+              f"{f(r.get('total_kW'), 9, 1)}{f(r.get('specific_kWh_per_Nm3'), 9, 3)}"
+              f"{f(r.get('specific_cost_usd_per_Nm3'), 9, 4)}")
+    print("-" * 92)
+    ok = sum(1 for r in rows if r.get("converged"))
+    print(f"{ok}/{len(rows)} métodos convergiram.")
+    for crit in ("purity_CH4", "recovery_CH4", "total_kW", "specific_cost_usd_per_Nm3"):
+        b = eng.best_by(rows, crit)
+        if b:
+            print(f"  Melhor por {crit}: {b['method_label']}")
+    rank = eng.weighted_score(rows)
+    if rank and rank[0].get("score") is not None:
+        print(f"  Ranking ponderado (topo): {rank[0]['method_label']} "
+              f"(score {rank[0]['score']})")
+    if args.export:
+        export_comparison(eng.report(rows), args.export)
+        print(f"Exportado: {args.export}")
 
 
 # --------------------------------------------------------------------------- #
@@ -427,7 +507,15 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Membrana multi-estágio (1 vs 2-estágios+reciclo vs série)")
     pmm.set_defaults(func=_cmd_run_membrane_multi)
 
-    pc = sub.add_parser("compare", help="Comparar todas as tecnologias")
+    pc = sub.add_parser("compare", help="Comparar tecnologias de upgrading")
+    pc.add_argument("methods", nargs="*", default=[],
+                    help="Métodos: water mea dea mdea selexol rectisol psa membrane membrane-multi")
+    pc.add_argument("--case", default=None, help="Herdar feed (composição/vazão) de um caso JSON")
+    pc.add_argument("--flow", type=float, default=None, help="Vazão do biogás (mol/s)")
+    pc.add_argument("--mode", default="standard", choices=["standard", "optimized"],
+                    help="Modo: standard (parâmetros padrão) ou optimized (otimiza antes)")
+    pc.add_argument("--export", default=None,
+                    help="Exportar relatório (.csv/.json/.html/.xlsx/.pdf)")
     pc.set_defaults(func=_cmd_compare)
 
     # --- Milestone 1: casos, composição e estudos paramétricos CH4-CO2 ----- #

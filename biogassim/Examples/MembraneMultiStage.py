@@ -20,16 +20,31 @@ import numpy as np
 
 from ..Export import export_json
 from ..Membranes import series_stages, single_stage, two_stage_recycle
-from .common import BIOGAS
+from ..Optimization import EnergySummary, compression_energy
+from ..Properties import normalize_mixture
+from ..UnitOperations.Compressor import compress
+from .common import BIOGAS, biogas_stream
 
 OUTDIR = "examples_output"
 
 
+def _ch4_co2_z(composition):
+    """Vetor z CH4/CO2 renormalizado (o modelo de membrana é CH4-CO2)."""
+    if composition is None:
+        return np.array([BIOGAS["CH4"], BIOGAS["CO2"]])
+    c = {k: float(v) for k, v in composition.items()
+         if k in ("CH4", "CO2") and float(v) > 0.0}
+    if not c:
+        return np.array([BIOGAS["CH4"], BIOGAS["CO2"]])
+    c = normalize_mixture(c)
+    return np.array([c.get("CH4", 0.0), c.get("CO2", 0.0)])
+
+
 def run_case(material: str = "Polyimide", P_feed_bar: float = 15.0,
              P_perm_bar: float = 1.0, flow: float = 100.0,
-             save: bool = True) -> dict:
+             composition=None, save: bool = True) -> dict:
     species = ["CH4", "CO2"]
-    z = np.array([BIOGAS["CH4"], BIOGAS["CO2"]])
+    z = _ch4_co2_z(composition)
     Pf, Pp, T = P_feed_bar * 1e5, P_perm_bar * 1e5, 308.15
 
     s = single_stage(material, species, z, flow, T, Pf, Pp, stage_cut=0.65)
@@ -51,6 +66,17 @@ def run_case(material: str = "Polyimide", P_feed_bar: float = 15.0,
         row("2 estagios + reciclo", d, d.total_area, d.recycle_flow),
         row("3 estagios em serie", c, c.total_area),
     ]
+    # energia: compressão do feed + recompressão do reciclo (estimativa, mesma
+    # base dos demais métodos -- reusa o Compressor).
+    zdict = {"CH4": float(z[0]), "CO2": float(z[1])}
+    gas_in = biogas_stream(flow, species=species, T=T, P=1.01325e5, composition=zdict)
+    comp = compress(gas_in, Pf, eta=0.75)
+    recyc = biogas_stream(d.recycle_flow, species=species, T=T, P=Pp, composition=zdict)
+    recompr = compress(recyc, Pf, eta=0.75)
+    energy = EnergySummary(compression=compression_energy([comp, recompr]))
+    bio_mols = flow * (rows[1]["recovery_CH4"] / 100.0)
+    bio_nm3h = bio_mols * 0.0224 * 3600
+    energy.finalize(bio_nm3h)
     # métricas "principais" = 2 estágios com reciclo (config padrão de biometano)
     metrics = {
         "technology": f"Membrane multi-stage ({material})",
@@ -61,6 +87,14 @@ def run_case(material: str = "Polyimide", P_feed_bar: float = 15.0,
         "purity_CH4": rows[1]["purity_CH4"],
         "recovery_CH4": rows[1]["recovery_CH4"],
         "CO2_removal": rows[1]["CO2_removal"],
+        "methane_loss": round(100.0 - rows[1]["recovery_CH4"], 2),
+        "feed_flow_mols": round(float(flow), 2),
+        "product_flow_mols": round(bio_mols, 2),
+        "operating_pressure_bar": round(P_feed_bar, 2),
+        "total_area_m2": round(d.total_area, 0),
+        "compression_kW": round(energy.compression, 2),
+        "total_kW": round(energy.total_kw, 2),
+        "specific_kWh_per_Nm3": round(energy.specific_kwh_per_nm3, 3),
         "two_stage_converged": d.converged,
         "mass_balance_error": d.mass_balance_error,
     }

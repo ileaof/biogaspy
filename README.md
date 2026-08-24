@@ -18,6 +18,10 @@ purificação para produção de biometano a partir de biogás **47% CH₄ / 53%
 > (LHV/HHV/Wobbe/densidade/SG + H₂S residual), **segurança** (avisos de toxicidade,
 > limite de H₂S configurável), **varredura de H₂S** e **dashboard** com seção H₂S.
 > Water Scrubbing e MEA validados ponta-a-ponta (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)).
+> **Comparação de métodos:** `biogassim compare` (CLI) e a aba *Comparação de
+> Métodos* da GUI rodam todas as tecnologias sob o mesmo feed via um backend
+> compartilhado (`ComparisonEngine`) — tabela padronizada, ranking
+> uni/multi-critério, energia/economia e exportação (CSV/JSON/HTML/XLSX/PDF).
 
 ## Clonar o repositório
 
@@ -72,10 +76,36 @@ python -m biogassim.cli run-mea            # lavagem química com MEA (2 bar)
 python -m biogassim.cli run-psa            # PSA (estimativa)
 python -m biogassim.cli run-membrane       # membrana (1 estágio)
 python -m biogassim.cli run-membrane-multi # membrana multi-estágio (reciclo/série)
-python -m biogassim.cli compare            # tabela comparativa + gráficos
+python -m biogassim.cli compare            # compara tecnologias (ver abaixo)
 ```
 
 Resultados e gráficos são salvos em `examples_output/`.
+
+### Comparação de métodos (CLI)
+
+O comando `compare` roda várias tecnologias de upgrading sob a **mesma
+alimentação** e devolve uma tabela padronizada (pureza, recuperação, remoção de
+CO₂/H₂S, energia elétrica/térmica, consumo de água/solvente, OPEX, custo
+específico, qualidade do gás tratado), ranking uni- e multi-critério e exportação.
+É o mesmo backend (`biogassim.comparison.ComparisonEngine`) que a aba de
+comparação da GUI — CLI e GUI produzem resultados numericamente idênticos.
+
+```bash
+biogassim compare                                # métodos recomendados, biogás 47/53
+biogassim compare water mea psa membrane         # só os métodos informados
+biogassim compare --case meu_projeto/case.json    # herda feed (composição/vazão) do caso
+biogassim compare --mode optimized --flow 200    # modo otimizado (otimiza antes de rodar)
+biogassim compare --export comparison.xlsx        # exporta relatório (.csv/.json/.html/.xlsx/.pdf)
+```
+
+Métodos disponíveis: `water`, `mea`, `dea`, `mdea`, `selexol`, `rectisol`,
+`psa`, `membrane`, `membrane-multi` (alias: `multi`). Os marcados como
+*Experimental* (DEA, Rectisol, PSA) são estimativas — aparecem, mas o conjunto
+**Recomendados** traz apenas os operacionais e representativos.
+
+Um método que falha (não converge/erro) é registrado como falha com a mensagem
+do solver, sem cancelar a comparação — os demais métodos seguem e aparecem na
+tabela.
 
 ### Casos e composição CH₄–CO₂ (Milestone 1)
 
@@ -270,6 +300,42 @@ sobre o mesmo motor de simulação da CLI. A janela tem cinco áreas:
 Todos os cálculos reutilizam o mesmo núcleo da CLI (`biogassim.cases`); portanto,
 para as mesmas entradas, GUI e CLI produzem resultados idênticos.
 
+#### Aba "Comparação de Métodos"
+
+A janela principal agora tem **duas abas**: *Simulação* (acima) e **Comparação
+de Métodos**. A segunda compara as tecnologias de upgrading lado a lado usando
+o **mesmo backend** que `biogassim compare` (`biogassim.comparison.ComparisonEngine`)
+— nenhuma termodinâmica é duplicada na GUI, apenas apresentação.
+
+- **Condições herdadas (somente leitura)** — a alimentação (CH₄/CO₂/H₂S, vazão,
+  pressão, T, modelo termodinâmico) vem da aba *Simulação*, sem reentrada. Quando
+  o feed muda, o cabeçalho é atualizado e os resultados anteriores ficam marcados
+  como **desatualizados** (⚠ "Condições de alimentação alteradas — rode a
+  comparação novamente").
+- **Seleção de métodos** — *checkboxes* por tecnologia + botões *Selecionar
+  tudo* / *Limpar* / *Recomendados*. Métodos experimentais aparecem rotulados.
+- **Modo** — *Padrão* (parâmetros predefinidos) ou *Otimizado* (a engine otimiza a
+  variável principal de cada tecnologia antes de rodar).
+- **Parâmetros por tecnologia** — área expansível: cada método selecionado
+  mostra seus parâmetros operacionais (água: P/L/V/N/altura; aminas: +concentração;
+  PSA: adsorvente/pressões; membranas: material/pressões/área/estágios).
+- **Execução** — roda em *thread separada* (a GUI continua responsiva), com
+  botões **Executar** / **Parar** e um monitor de progresso por método
+  (corrente / concluído / falhou). Um método que falha não derruba a comparação.
+- **Tabela de resultados** — uma linha por método, ~24 colunas (pureza,
+  recuperação, remoção CO₂/H₂S, perda CH₄, vazão do produto, consumo de
+  água/solvente, energia elétrica/térmica/total, energia específica, pressão de
+  operação, altura/diâmetro da coluna, eficiência global, OPEX, custo específico,
+  LHV/HHV/Wobbe do gás tratado, H₂S no gás tratado, convergiu), com ordenação e
+  menu de visibilidade de colunas.
+- **Gráfico comparativo** — barras por métrica (dropdown "Comparar por").
+- **Ranking** — *melhor método por critério* + ranking **multi-critério ponderado**
+  com pesos editáveis (pureza, recuperação, energia, custo, água).
+- **Exportar / Salvar / Carregar** — exporta o relatório completo
+  (.csv/.json/.html/.xlsx/.pdf); salva e recarrega a configuração de comparação
+  (métodos, parâmetros, modo, pesos) em JSON. A configuração também viaja no
+  arquivo de projeto (campo `comparison` do caso) quando salva pela CLI/`cases`.
+
 ## Uso como scripts
 
 ```bash
@@ -314,8 +380,11 @@ biogassim/
   Examples/         casos prontos
   cli.py            linha de comando
   cases.py          casos JSON, validação, execução, varreduras (CH4, H2S)
+  comparison.py     ComparisonEngine — compara tecnologias sob o mesmo feed
+                    (backend compartilhado por `biogassim compare` e pela GUI)
   safety.py         segurança H2S (avisos, limite configurável, adequação p/ motor)
   dashboard.py      formatação de resultados (feed/upgraded/performance/safety)
+  gui/              GUI PySide6/PyQt5 (main_window + aba comparison_tab)
 tests/              pytest
 docs/               documentação
 ```
@@ -332,6 +401,7 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) e [`docs/ROADMAP.md`](docs/RO
 | Selexol / Rectisol | ✅ funcional | solventes físicos (Henry), calibrados vs. literatura |
 | PSA | ~ estimativa | isoterma + seletividade; ciclo dinâmico = roadmap |
 | Membranas | ✅ 1 e multi-estágio | mistura completa (resolve θ); 1 estágio, 2-estágios + reciclo, cascata em série |
+| **Comparação de métodos** | ✅ CLI + GUI | `biogassim compare` / aba *Comparação de Métodos*: mesmo backend (`ComparisonEngine`), tabela, ranking, energia/economia, export |
 
 ## Validação
 
@@ -350,7 +420,7 @@ Validação sistemática contra Aspen Plus/DWSIM é meta futura (ROADMAP).
 
 ```bash
 pip install -e ".[dev,excel,gui]"   # pytest, pytest-cov, ruff, openpyxl, PySide6
-pytest -q                       # roda os 199 testes (GUI é pulada sem Qt instalado)
+pytest -q                       # roda os 237 testes (GUI é pulada sem Qt instalado)
 pytest --cov=biogassim          # com cobertura
 ruff check biogassim tests      # lint
 ruff check --fix biogassim tests   # corrige o que for auto-corrigível

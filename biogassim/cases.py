@@ -38,6 +38,8 @@ class Case:
     feed: dict = field(default_factory=lambda: {"CH4": 0.47, "CO2": 0.53,
                                                 "flow_mols": 100.0})
     operating: dict = field(default_factory=dict)
+    # config de comparação de métodos (opcional; ver biogassim.comparison)
+    comparison: dict | None = None
 
 
 def _valid_tech(t: str) -> str:
@@ -93,7 +95,8 @@ def load_case(path: str) -> Case:
     case = Case(name=data.get("name", "case"),
                 technology=data.get("technology", "water"),
                 feed=dict(data.get("feed", {})),
-                operating=dict(data.get("operating", {})))
+                operating=dict(data.get("operating", {})),
+                comparison=data.get("comparison"))
     return validate_case(case)
 
 

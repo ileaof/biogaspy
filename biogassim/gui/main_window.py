@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from .. import cases, safety
 from ..Properties import mixture_properties_general
-from .qt import Qt, QtWidgets
+from .qt import Qt, QtWidgets, Signal
 
 # Canvas matplotlib (opcional -- degrada com elegância se indisponível)
 try:
@@ -78,15 +78,19 @@ _COMP_LABEL = {"CH4": "CH₄", "CO2": "CO₂", "H2S": "H₂S"}
 
 
 class MainWindow(QtWidgets.QMainWindow):
+    #: emitido quando a composição/condições da alimentação mudam (a aba de
+    #: comparação escuta para herdar o feed e marcar resultados como obsoletos).
+    feed_changed = Signal()
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("BioGasSim -- Upgrading de biogás CH₄–CO₂–H₂S")
         self._updating = False
         self._comp = {"CH4": 0.47, "CO2": 0.53, "H2S": 0.0}
 
-        central = QtWidgets.QWidget()
-        self.setCentralWidget(central)
-        root = QtWidgets.QHBoxLayout(central)
+        # ---- aba 1: Simulação (paineis existentes, inalterados) ----
+        sim_widget = QtWidgets.QWidget()
+        root = QtWidgets.QHBoxLayout(sim_widget)
 
         left = QtWidgets.QVBoxLayout()
         left.addWidget(self._build_operating_group())   # antes: define P p/ leituras
@@ -101,6 +105,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
         root.addLayout(left, 0)
         root.addLayout(right, 1)
+
+        # ---- container de abas: Simulação + Comparação de Métodos ----
+        self.tabs = QtWidgets.QTabWidget()
+        self.tabs.addTab(sim_widget, "Simulação")
+        from .comparison_tab import ComparisonTab
+        self.comp_tab = ComparisonTab(self)   # herda o feed desta janela
+        self.tabs.addTab(self.comp_tab, "Comparação de Métodos")
+        self.setCentralWidget(self.tabs)
 
         self._set_composition(dict(self._comp))         # popula leituras iniciais
 
@@ -175,6 +187,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lv_spin = self._num_spin(1.0, 1000.0, 100.0, 1)
         self.n_spin = self._num_spin(1, 60, 12, 0)
         self.h_spin = self._num_spin(1.0, 60.0, 15.0, 1)
+        # qualquer mudança operacional notifica a aba de comparação (feed alterado)
+        for sp in (self.flow_spin, self.p_spin, self.lv_spin, self.n_spin, self.h_spin):
+            sp.valueChanged.connect(lambda _v: self.feed_changed.emit())
         form.addRow("Tecnologia", self.tech)
         form.addRow("Vazão do biogás [mol/s]", self.flow_spin)
         form.addRow("Pressão [bar]", self.p_spin)
@@ -288,6 +303,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self._updating = False
         self._refresh_props()
         self._refresh_safety()
+        self.feed_changed.emit()
 
     def _refresh_props(self):
         p_bar = self.p_spin.value() if hasattr(self, "p_spin") else 1.01325
@@ -334,10 +350,26 @@ class MainWindow(QtWidgets.QMainWindow):
         finally:
             self._updating = False
         self._refresh_props()
+        self.feed_changed.emit()
 
     # ------------------------------------------------------------------ #
-    # solver
+    # estado de alimentação compartilhado (fonte única p/ aba de comparação)
     # ------------------------------------------------------------------ #
+    def feed_conditions(self) -> dict:
+        """Estado de alimentação herdado pela aba de comparação (fonte única).
+
+        Composição (CH4/CO2/H2S), vazão, pressão e temperatura do feed -- os
+        mesmos valores da aba Simulação, sem cópia independente.
+        """
+        return {
+            "comp": dict(self._comp),
+            "flow": self.flow_spin.value(),
+            "P_bar": self.p_spin.value(),
+            "T_K": 298.15,                      # feed a 25 °C (modelo isotérmico)
+            "tech": self.tech.currentText(),
+            "thermodynamic_model": "Peng-Robinson",
+        }
+
     def _current_case(self) -> cases.Case:
         feed = {s: self._comp[s] for s in _COMPS if self._comp[s] > 1e-9}
         if not feed:
