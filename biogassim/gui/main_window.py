@@ -106,9 +106,18 @@ class MainWindow(QtWidgets.QMainWindow):
         root.addLayout(left, 0)
         root.addLayout(right, 1)
 
+        # barra de rolagem própria da aba Simulação -- conteúdo acessível com a
+        # janela reduzida (consistente com as sub-abas de comparação). Largura
+        # acompanha a janela (sem rolagem horizontal); rolagem vertical só entra
+        # quando o conteúdo não cabe.
+        sim_scroll = QtWidgets.QScrollArea()
+        sim_scroll.setWidgetResizable(True)
+        sim_scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+        sim_scroll.setWidget(sim_widget)
+
         # ---- container de abas: Simulação + Comparação de Métodos ----
         self.tabs = QtWidgets.QTabWidget()
-        self.tabs.addTab(sim_widget, "Simulação")
+        self.tabs.addTab(sim_scroll, "Simulação")
         from .comparison_tab import ComparisonTab
         self.comp_tab = ComparisonTab(self)   # herda o feed desta janela
         self.tabs.addTab(self.comp_tab, "Comparação de Métodos")

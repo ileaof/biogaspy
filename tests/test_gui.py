@@ -81,3 +81,14 @@ def test_sweep_runs_and_reports(app):
     assert rows and any(r.get("converged") for r in rows)
     assert "convergiram" in w.status.text()
     assert "feed_H2S_pct" in rows[0]
+
+
+def test_simulation_tab_has_scroll_area(app):
+    """A aba Simulação tem barra de rolagem própria -- conteúdo acessível com a
+    janela reduzida (consistente com as sub-abas de comparação)."""
+    w = MainWindow()
+    sim = w.tabs.widget(0)              # primeira aba = Simulação
+    from biogassim.gui.qt import QtWidgets as _QW
+    assert isinstance(sim, _QW.QScrollArea)
+    assert sim.widgetResizable()
+    assert sim.widget() is not None

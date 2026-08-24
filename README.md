@@ -253,7 +253,9 @@ Num desktop normal (Windows/macOS/Linux) a janela abre com fontes normais —
 #### Como usar a GUI
 
 A GUI (PySide6 preferido, PyQt5 alternativo — via shim) é a camada interativa
-sobre o mesmo motor de simulação da CLI. A janela tem cinco áreas:
+sobre o mesmo motor de simulação da CLI. A janela tem cinco áreas (a aba
+*Simulação* tem barra de rolagem própria, então todo o conteúdo permanece
+acessível com a janela reduzida):
 
 - **Condições operacionais** (topo, à esquerda) — escolha a **tecnologia**
   (`water` ou `mea`) e ajuste vazão do biogás, pressão, razão L/V, número de
@@ -442,7 +444,7 @@ Validação sistemática contra Aspen Plus/DWSIM é meta futura (ROADMAP).
 
 ```bash
 pip install -e ".[dev,excel,gui]"   # pytest, pytest-cov, ruff, openpyxl, PySide6
-pytest -q                       # roda os 241 testes (GUI é pulada sem Qt instalado)
+pytest -q                       # roda os 242 testes (GUI é pulada sem Qt instalado)
 pytest --cov=biogassim          # com cobertura
 ruff check biogassim tests      # lint
 ruff check --fix biogassim tests   # corrige o que for auto-corrigível
