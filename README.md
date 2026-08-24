@@ -318,6 +318,10 @@ Para facilitar a visualização, a aba *Comparação de Métodos* é dividida em
   controles). Ao concluir a comparação a GUI troca automaticamente para esta
   sub-aba.
 
+Cada sub-aba tem sua **própria barra de rolagem** (QScrollArea independente),
+de modo que todo o conteúdo permanece acessível mesmo com a janela reduzida ou
+com muitos métodos selecionados / muitos resultados exibidos.
+
 **Sub-aba Configuração:**
 
 - **Condições herdadas (somente leitura)** — a alimentação (CH₄/CO₂/H₂S, vazão,
@@ -438,7 +442,7 @@ Validação sistemática contra Aspen Plus/DWSIM é meta futura (ROADMAP).
 
 ```bash
 pip install -e ".[dev,excel,gui]"   # pytest, pytest-cov, ruff, openpyxl, PySide6
-pytest -q                       # roda os 239 testes (GUI é pulada sem Qt instalado)
+pytest -q                       # roda os 240 testes (GUI é pulada sem Qt instalado)
 pytest --cov=biogassim          # com cobertura
 ruff check biogassim tests      # lint
 ruff check --fix biogassim tests   # corrige o que for auto-corrigível

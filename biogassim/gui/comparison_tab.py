@@ -118,22 +118,38 @@ class ComparisonTab(QtWidgets.QWidget):
     # ------------------------------------------------------------------ #
     def _build_config_page(self) -> QtWidgets.QWidget:
         """Sub-aba de configuração: feed herdado + métodos + modo + parâmetros +
-        Executar/Parar/Salvar/Carregar."""
+        Executar/Parar/Salvar/Carregar. Embrulhada em QScrollArea independente para
+        que todo o conteúdo seja acessível com a janela reduzida ou muitos métodos
+        selecionados."""
         page = QtWidgets.QWidget()
         lay = QtWidgets.QVBoxLayout(page)
         lay.addWidget(self._build_header())
         lay.addWidget(self._build_methods_group())
-        lay.addWidget(self._build_params_area(), 1)
+        lay.addWidget(self._build_params_area())
         lay.addWidget(self._build_progress())
-        return page
+        lay.addStretch(1)
+        return self._wrap_scroll(page)
 
     def _build_results_page(self) -> QtWidgets.QWidget:
-        """Sub-aba de resultados: exportar + tabela + gráfico + ranking."""
+        """Sub-aba de resultados: exportar + tabela + gráfico + ranking.
+        Embrulhada em QScrollArea independente para acessar tudo com a janela
+        reduzida ou muitos resultados exibidos."""
         page = QtWidgets.QWidget()
         lay = QtWidgets.QVBoxLayout(page)
+        lay.setContentsMargins(0, 0, 0, 0)
         lay.addWidget(self._build_results_toolbar())
         lay.addWidget(self._build_results_area(), 1)
-        return page
+        return self._wrap_scroll(page)
+
+    @staticmethod
+    def _wrap_scroll(widget: QtWidgets.QWidget) -> QtWidgets.QScrollArea:
+        """Embrulha um widget em um QScrollArea com moldura invisível e resize
+        de conteúdo -- barra de rolagem independente por sub-aba."""
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
+        scroll.setWidget(widget)
+        return scroll
 
     def _build_results_toolbar(self) -> QtWidgets.QWidget:
         w = QtWidgets.QWidget()
@@ -242,12 +258,9 @@ class ComparisonTab(QtWidgets.QWidget):
     def _build_params_area(self) -> QtWidgets.QGroupBox:
         box = QtWidgets.QGroupBox("Parâmetros por tecnologia")
         lay = QtWidgets.QVBoxLayout(box)
-        self.params_scroll = QtWidgets.QScrollArea()
-        self.params_scroll.setWidgetResizable(True)
         self.params_host = QtWidgets.QWidget()
         self.params_host_lay = QtWidgets.QVBoxLayout(self.params_host)
-        self.params_scroll.setWidget(self.params_host)
-        lay.addWidget(self.params_scroll)
+        lay.addWidget(self.params_host)
         self._rebuild_params()
         return box
 
@@ -332,6 +345,7 @@ class ComparisonTab(QtWidgets.QWidget):
         self.table = QtWidgets.QTableWidget(0, len(COLUMNS))
         self.table.setHorizontalHeaderLabels([c[1] for c in COLUMNS])
         self.table.setSortingEnabled(True)
+        self.table.setMinimumHeight(300)
         self.table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
         tlay.addWidget(self.table)
         splitter.addWidget(table_box)
@@ -339,6 +353,7 @@ class ComparisonTab(QtWidgets.QWidget):
         # gráfico + ranking
         bottom = QtWidgets.QSplitter(Qt.Horizontal)
         plot_box = QtWidgets.QGroupBox("Gráfico de comparação")
+        plot_box.setMinimumHeight(280)
         play = QtWidgets.QVBoxLayout(plot_box)
         row = QtWidgets.QHBoxLayout()
         row.addWidget(QtWidgets.QLabel("Comparar por:"))
@@ -359,6 +374,7 @@ class ComparisonTab(QtWidgets.QWidget):
         bottom.addWidget(plot_box)
 
         rank_box = QtWidgets.QGroupBox("Ranking / decisão")
+        rank_box.setMinimumHeight(260)
         rlay = QtWidgets.QVBoxLayout(rank_box)
         brow = QtWidgets.QHBoxLayout()
         brow.addWidget(QtWidgets.QLabel("Melhor por:"))

@@ -351,6 +351,19 @@ def test_comparison_tab_auto_switches_to_results_on_finish(app):
     assert tab.sub_tabs.currentWidget() is tab.results_page
 
 
+def test_comparison_subtabs_have_independent_scroll_areas(app):
+    """Cada sub-aba tem sua própria QScrollArea -- conteúdo acessível com a
+    janela reduzida ou muitos resultados/métodos."""
+    from biogassim.gui.qt import QtWidgets as _QW
+
+    w = MainWindow()
+    tab = w.comp_tab
+    for page in (tab.config_page, tab.results_page):
+        assert isinstance(page, _QW.QScrollArea)
+        assert page.widgetResizable()
+        assert page.widget() is not None
+
+
 def test_comparison_tab_method_selection_syncs_config(app):
     w = MainWindow()
     tab = w.comp_tab
