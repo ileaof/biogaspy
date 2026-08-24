@@ -92,3 +92,14 @@ def test_simulation_tab_has_scroll_area(app):
     assert isinstance(sim, _QW.QScrollArea)
     assert sim.widgetResizable()
     assert sim.widget() is not None
+
+
+def test_about_menu_present(app):
+    """Barra de menu Ajuda → Sobre o BioGasPy presente."""
+    w = MainWindow()
+    found = False
+    for top in w.menuBar().actions():
+        for act in (top.menu().actions() if top.menu() else []):
+            if "Sobre" in act.text():
+                found = True
+    assert found

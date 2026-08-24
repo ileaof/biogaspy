@@ -22,7 +22,10 @@ from __future__ import annotations
 
 from .. import cases, safety
 from ..Properties import mixture_properties_general
-from .qt import Qt, QtWidgets, Signal
+from .qt import Qt, QtGui, QtWidgets, Signal
+
+# QAction mudou de QtWidgets (PyQt5) para QtGui (PySide6/PyQt6) -- portável:
+QAction = getattr(QtGui, "QAction", None) or QtWidgets.QAction  # noqa: B009
 
 # Canvas matplotlib (opcional -- degrada com elegância se indisponível)
 try:
@@ -123,7 +126,30 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabs.addTab(self.comp_tab, "Comparação de Métodos")
         self.setCentralWidget(self.tabs)
 
+        self._build_menu()                              # barra de menu (Ajuda → Sobre)
+
         self._set_composition(dict(self._comp))         # popula leituras iniciais
+
+    # ------------------------------------------------------------------ #
+    # Menu / Sobre
+    # ------------------------------------------------------------------ #
+    def _build_menu(self):
+        """Barra de menu com Ajuda → Sobre o BioGasPy."""
+        menubar = self.menuBar()
+        help_menu = menubar.addMenu("&Ajuda")
+        act = QAction("&Sobre o BioGasPy…", self)
+        act.triggered.connect(self._show_about)
+        help_menu.addAction(act)
+
+    def _show_about(self):
+        """Caixa 'Sobre' com a autoria/afiliação do projeto."""
+        QtWidgets.QMessageBox.about(
+            self, "Sobre o BioGasPy",
+            "<p><b>BioGasPy — Thermodynamic Gas Upgrading Simulator</b></p>"
+            "<p>Prof. Dr. Ivaldo Leão Ferreira<br>"
+            "Federal University of Pará — UFPA<br>"
+            "Faculty of Mechanical Engineering</p>"
+            "<p>FEM-ITEC-UFPA 2026</p>")
 
     # ------------------------------------------------------------------ #
     # Painéis
