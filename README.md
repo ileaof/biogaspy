@@ -302,10 +302,23 @@ para as mesmas entradas, GUI e CLI produzem resultados idênticos.
 
 #### Aba "Comparação de Métodos"
 
-A janela principal agora tem **duas abas**: *Simulação* (acima) e **Comparação
-de Métodos**. A segunda compara as tecnologias de upgrading lado a lado usando
+A janela principal tem **duas abas**: *Simulação* (acima) e **Comparação de
+Métodos**. A segunda compara as tecnologias de upgrading lado a lado usando
 o **mesmo backend** que `biogassim compare` (`biogassim.comparison.ComparisonEngine`)
 — nenhuma termodinâmica é duplicada na GUI, apenas apresentação.
+
+Para facilitar a visualização, a aba *Comparação de Métodos* é dividida em
+**duas sub-abas**:
+
+- **Configuração** — condições de alimentação herdadas (somente leitura),
+  seleção de métodos, modo (Padrão/Otimizado), parâmetros por tecnologia e
+  botões **Executar** / **Parar** / **Salvar config** / **Carregar config**.
+- **Resultados** — tabela comparativa, gráfico de barras e ranking/decisão,
+  com o botão **Exportar**. Ganha a tela inteira (em vez de dividi-la com os
+  controles). Ao concluir a comparação a GUI troca automaticamente para esta
+  sub-aba.
+
+**Sub-aba Configuração:**
 
 - **Condições herdadas (somente leitura)** — a alimentação (CH₄/CO₂/H₂S, vazão,
   pressão, T, modelo termodinâmico) vem da aba *Simulação*, sem reentrada. Quando
@@ -322,6 +335,12 @@ o **mesmo backend** que `biogassim compare` (`biogassim.comparison.ComparisonEng
 - **Execução** — roda em *thread separada* (a GUI continua responsiva), com
   botões **Executar** / **Parar** e um monitor de progresso por método
   (corrente / concluído / falhou). Um método que falha não derruba a comparação.
+- **Salvar / Carregar config** — salva e recarrega a configuração de comparação
+  (métodos, parâmetros, modo, pesos) em JSON. A configuração também viaja no
+  arquivo de projeto (campo `comparison` do caso) quando salva pela CLI/`cases`.
+
+**Sub-aba Resultados:**
+
 - **Tabela de resultados** — uma linha por método, ~24 colunas (pureza,
   recuperação, remoção CO₂/H₂S, perda CH₄, vazão do produto, consumo de
   água/solvente, energia elétrica/térmica/total, energia específica, pressão de
@@ -331,10 +350,9 @@ o **mesmo backend** que `biogassim compare` (`biogassim.comparison.ComparisonEng
 - **Gráfico comparativo** — barras por métrica (dropdown "Comparar por").
 - **Ranking** — *melhor método por critério* + ranking **multi-critério ponderado**
   com pesos editáveis (pureza, recuperação, energia, custo, água).
-- **Exportar / Salvar / Carregar** — exporta o relatório completo
-  (.csv/.json/.html/.xlsx/.pdf); salva e recarrega a configuração de comparação
-  (métodos, parâmetros, modo, pesos) em JSON. A configuração também viaja no
-  arquivo de projeto (campo `comparison` do caso) quando salva pela CLI/`cases`.
+- **Exportar** — exporta o relatório completo
+  (.csv/.json/.html/.xlsx/.pdf); ao concluir a comparação a GUI troca
+  automaticamente para esta sub-aba.
 
 ## Uso como scripts
 
@@ -420,7 +438,7 @@ Validação sistemática contra Aspen Plus/DWSIM é meta futura (ROADMAP).
 
 ```bash
 pip install -e ".[dev,excel,gui]"   # pytest, pytest-cov, ruff, openpyxl, PySide6
-pytest -q                       # roda os 237 testes (GUI é pulada sem Qt instalado)
+pytest -q                       # roda os 239 testes (GUI é pulada sem Qt instalado)
 pytest --cov=biogassim          # com cobertura
 ruff check biogassim tests      # lint
 ruff check --fix biogassim tests   # corrige o que for auto-corrigível

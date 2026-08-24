@@ -324,6 +324,33 @@ def test_comparison_tab_constructs_and_inherits_feed(app):
     assert tab.header_labels["Modelo"].text() == "Peng-Robinson"
 
 
+def test_comparison_tab_has_two_subtabs(app):
+    """A aba de comparação é dividida em Configuração + Resultados."""
+    w = MainWindow()
+    tab = w.comp_tab
+    assert tab.sub_tabs.count() == 2
+    assert tab.sub_tabs.tabText(0) == "Configuração"
+    assert tab.sub_tabs.tabText(1) == "Resultados"
+    # widgets de setup vivem na página de configuração; resultados na outra
+    assert tab.method_checks  # checkboxes de método
+    assert tab.table is not None
+    assert tab.export_btn is not None
+
+
+def test_comparison_tab_auto_switches_to_results_on_finish(app):
+    """Ao concluir, a GUI leva o usuário à sub-aba de Resultados."""
+    w = MainWindow()
+    tab = w.comp_tab
+    tab._set_selection(["water", "mea"])
+    eng = tab._build_engine()
+    rows = eng.run()
+    tab.engine = eng
+    # começa na Configuração
+    tab.sub_tabs.setCurrentWidget(tab.config_page)
+    tab._on_finished(rows)
+    assert tab.sub_tabs.currentWidget() is tab.results_page
+
+
 def test_comparison_tab_method_selection_syncs_config(app):
     w = MainWindow()
     tab = w.comp_tab

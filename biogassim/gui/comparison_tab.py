@@ -1,10 +1,19 @@
 """Aba "Comparação de Métodos" da GUI do BioGasSim.
 
-HerdA as condições de alimentação da aba Simulação (fonte única -- sem cópia da
+Herda as condições de alimentação da aba Simulação (fonte única -- sem cópia da
 composição), seleciona tecnologias, roda todas sob o mesmo feed via
 :class:`biogassim.comparison.ComparisonEngine` (mesmo backend da CLI) em uma
 thread separada, e apresenta tabela de resultados, KPIs, gráfico de barras,
 ranking uni/multi-critério e exportação.
+
+Para facilitar a visualização, a aba é dividida em **duas sub-abas**:
+
+* **Configuração** -- condições herdadas, seleção de métodos, modo, parâmetros
+  por tecnologia e botões Executar/Parar/Salvar/Carregar.
+* **Resultados** -- tabela comparativa, gráfico de barras e ranking/decisão,
+  com o botão Exportar. Ganha a tela inteira (em vez de dividi-la com os
+  controles). Ao concluir a comparação a GUI troca automaticamente para esta
+  sub-aba.
 
 Camadas claras: toda a ciência fica em ``biogassim.comparison``; esta classe é
 apenas apresentação + fiação de sinais Qt.
@@ -90,16 +99,54 @@ class ComparisonTab(QtWidgets.QWidget):
         self._stale = False
         self._param_widgets: dict[str, dict] = {}   # {method: {param_key: widget}}
 
+        # duas sub-abas: Configuração (setup) e Resultados (tabela/gráfico/ranking)
+        self.sub_tabs = QtWidgets.QTabWidget()
+        self.config_page = self._build_config_page()
+        self.results_page = self._build_results_page()
+        self.sub_tabs.addTab(self.config_page, "Configuração")
+        self.sub_tabs.addTab(self.results_page, "Resultados")
+
         lay = QtWidgets.QVBoxLayout(self)
-        lay.addWidget(self._build_header())
-        lay.addWidget(self._build_methods_group())
-        lay.addWidget(self._build_params_area())
-        lay.addWidget(self._build_progress())
-        lay.addWidget(self._build_results_area(), 1)
+        lay.addWidget(self.sub_tabs)
 
         # herda feed da aba principal e escuta mudanças
         self._refresh_header()
         self.main.feed_changed.connect(self._on_feed_changed)
+
+    # ------------------------------------------------------------------ #
+    # Sub-abas (Configuração / Resultados)
+    # ------------------------------------------------------------------ #
+    def _build_config_page(self) -> QtWidgets.QWidget:
+        """Sub-aba de configuração: feed herdado + métodos + modo + parâmetros +
+        Executar/Parar/Salvar/Carregar."""
+        page = QtWidgets.QWidget()
+        lay = QtWidgets.QVBoxLayout(page)
+        lay.addWidget(self._build_header())
+        lay.addWidget(self._build_methods_group())
+        lay.addWidget(self._build_params_area(), 1)
+        lay.addWidget(self._build_progress())
+        return page
+
+    def _build_results_page(self) -> QtWidgets.QWidget:
+        """Sub-aba de resultados: exportar + tabela + gráfico + ranking."""
+        page = QtWidgets.QWidget()
+        lay = QtWidgets.QVBoxLayout(page)
+        lay.addWidget(self._build_results_toolbar())
+        lay.addWidget(self._build_results_area(), 1)
+        return page
+
+    def _build_results_toolbar(self) -> QtWidgets.QWidget:
+        w = QtWidgets.QWidget()
+        lay = QtWidgets.QHBoxLayout(w)
+        self.export_btn = QtWidgets.QPushButton("💾 Exportar…")
+        self.export_btn.clicked.connect(self._on_export)
+        lay.addWidget(self.export_btn)
+        lay.addStretch(1)
+        self.results_status_lbl = QtWidgets.QLabel(
+            "Rode a comparação na aba Configuração para ver os resultados.")
+        self.results_status_lbl.setStyleSheet("color: #444;")
+        lay.addWidget(self.results_status_lbl, 1)
+        return w
 
     # ------------------------------------------------------------------ #
     # Cabeçalho: condições herdadas (somente leitura)
@@ -254,14 +301,12 @@ class ComparisonTab(QtWidgets.QWidget):
         self.stop_btn = QtWidgets.QPushButton("■ Parar")
         self.stop_btn.setEnabled(False)
         self.stop_btn.clicked.connect(self._on_stop)
-        self.export_btn = QtWidgets.QPushButton("💾 Exportar…")
-        self.export_btn.clicked.connect(self._on_export)
         self.save_btn = QtWidgets.QPushButton("Salvar config")
         self.save_btn.clicked.connect(self._save_config)
         self.load_btn = QtWidgets.QPushButton("Carregar config")
         self.load_btn.clicked.connect(self._load_config)
         lay.addWidget(self.run_btn); lay.addWidget(self.stop_btn)
-        lay.addWidget(self.export_btn); lay.addWidget(self.save_btn); lay.addWidget(self.load_btn)
+        lay.addWidget(self.save_btn); lay.addWidget(self.load_btn)
         lay.addStretch(1)
         self.progress_lbl = QtWidgets.QLabel("Pronto.")
         self.progress_lbl.setStyleSheet("color: #444;")
@@ -387,12 +432,15 @@ class ComparisonTab(QtWidgets.QWidget):
         self.run_btn.setEnabled(True); self.stop_btn.setEnabled(False)
         ok = sum(1 for r in rows if r.get("converged"))
         fail = len(rows) - ok
-        self.progress_lbl.setText(
-            f"Concluído: {ok} convergiram, {fail} falharam.")
+        msg = f"Concluído: {ok} convergiram, {fail} falharam."
+        self.progress_lbl.setText(msg)
+        self.results_status_lbl.setText(msg)
         self._fill_table(rows)
         self._plot()
         self._update_best()
         self._calc_ranking()
+        # leva o usuário direto aos resultados
+        self.sub_tabs.setCurrentWidget(self.results_page)
 
     # ------------------------------------------------------------------ #
     # Tabela
@@ -495,7 +543,7 @@ class ComparisonTab(QtWidgets.QWidget):
     # ------------------------------------------------------------------ #
     def _on_export(self):
         if not self.rows:
-            self.progress_lbl.setText("Nada para exportar. Rode a comparação.")
+            self.results_status_lbl.setText("Nada para exportar. Rode a comparação.")
             return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "Exportar comparação", "comparison.xlsx",
@@ -504,7 +552,7 @@ class ComparisonTab(QtWidgets.QWidget):
             return
         eng = getattr(self, "engine", None) or self._build_engine()
         export_comparison(eng.report(self.rows), path)
-        self.progress_lbl.setText(f"Exportado: {path}")
+        self.results_status_lbl.setText(f"Exportado: {path}")
 
     # ------------------------------------------------------------------ #
     # Persistência da configuração
