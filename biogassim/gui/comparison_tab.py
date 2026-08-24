@@ -331,9 +331,13 @@ class ComparisonTab(QtWidgets.QWidget):
     # ------------------------------------------------------------------ #
     def _build_results_area(self) -> QtWidgets.QWidget:
         splitter = QtWidgets.QSplitter(Qt.Vertical)
+        splitter.setHandleWidth(8)            # alça mais grossa = mais fácil de arrastar
+        splitter.setChildrenCollapsible(False)  # não colapsa a tabela nem o gráfico
+        splitter.setStretchFactor(0, 3)        # tabela priorizada no espaço extra
 
-        # tabela
+        # tabela -- altura ajustável pelo usuário (arrasta a alça do splitter)
         table_box = QtWidgets.QGroupBox("Tabela comparativa")
+        table_box.setMinimumHeight(120)        # mínimo baixo: pode encolher bastante
         tlay = QtWidgets.QVBoxLayout(table_box)
         top = QtWidgets.QHBoxLayout()
         top.addWidget(QtWidgets.QLabel("Colunas:"))
@@ -345,7 +349,6 @@ class ComparisonTab(QtWidgets.QWidget):
         self.table = QtWidgets.QTableWidget(0, len(COLUMNS))
         self.table.setHorizontalHeaderLabels([c[1] for c in COLUMNS])
         self.table.setSortingEnabled(True)
-        self.table.setMinimumHeight(300)
         self.table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
         tlay.addWidget(self.table)
         splitter.addWidget(table_box)
@@ -409,7 +412,9 @@ class ComparisonTab(QtWidgets.QWidget):
         bottom.addWidget(rank_box)
         bottom.setSizes([500, 400])
         splitter.addWidget(bottom)
-        splitter.setSizes([300, 220])
+        splitter.setStretchFactor(1, 2)
+        splitter.setSizes([420, 300])
+        self.results_splitter = splitter   # splitter vertical: tabela (topo) ajustável
         return splitter
 
     # ------------------------------------------------------------------ #

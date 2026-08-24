@@ -364,6 +364,22 @@ def test_comparison_subtabs_have_independent_scroll_areas(app):
         assert page.widget() is not None
 
 
+def test_comparison_table_area_height_is_adjustable(app):
+    """A altura da área da tabela é ajustável: splitter vertical com alça,
+    tabela não-colapsável e com mínimo baixo (pode encolher bastante)."""
+    from biogassim.gui.qt import Qt as _Qt
+
+    w = MainWindow()
+    tab = w.comp_tab
+    sp = tab.results_splitter
+    assert sp.orientation() == _Qt.Vertical
+    assert sp.handleWidth() >= 6                 # alça arrastável
+    assert not sp.childrenCollapsible()          # não colapsa as seções
+    table_box = sp.widget(0)
+    # mínimo baixo => o usuário pode encolher a área da tabela arrastando a alça
+    assert 0 < table_box.minimumHeight() <= 150
+
+
 def test_comparison_tab_method_selection_syncs_config(app):
     w = MainWindow()
     tab = w.comp_tab
