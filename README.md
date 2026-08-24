@@ -257,6 +257,106 @@ Os arquivos `meu_projeto/case.json`, `sweep.csv`, `results.xlsx` e
 `meu_projeto_report.html` são gravados no diretório corrente; o `results/` do
 projeto recebe as saídas por caso.
 
+#### Exemplo completo (CLI): MEA, parâmetros de processo e comparação
+
+Agora com **lavagem química por MEA** (amina): cria o projeto, define o feed
+binário CH₄–CO₂, **altera parâmetros de processo** (pressão, razão L/V, estágios,
+altura, vazão), roda, calcula propriedades em **temperatura e pressão** dadas,
+gera relatório e **compara tecnologias** pela CLI. (MEA cobre CH₄–CO₂; a absorção
+reativa de H₂S/NH₃ em amina é roadmap — por isso o feed aqui é binário.)
+
+```bash
+biogassim new projeto_mea --tech mea          # 1) cria projeto MEA (P=2, L/V=20, N=8, H=12)
+```
+```
+Projeto criado em 'projeto_mea'
+  Caso padrão: projeto_mea\case.json
+  Resultados : projeto_mea/results/
+```
+
+```bash
+biogassim set CH4=0.55 CO2=0.45 --case projeto_mea/case.json   # 2) feed binário CH4-CO2
+```
+```
+Caso salvo em 'projeto_mea/case.json'
+  Composicao da alimentacao (normalizada para 100%):
+    CH4    55.000 %    CO2    45.000 %    TOTAL 100.000 %  [OK]
+  Tecnologia : mea
+  Operacional: {'P_bar': 2.0, 'L_over_V': 20.0, 'N_stages': 8, 'height_m': 12.0}
+```
+
+```bash
+# 3) altera parâmetros de processo: pressão, razão L/V, estágios, altura, vazão
+biogassim set P_bar=2.5 L_over_V=25 N_stages=10 height_m=14 flow_mols=120 --case projeto_mea/case.json
+```
+```
+Caso salvo em 'projeto_mea/case.json'
+  Composicao da alimentacao (normalizada para 100%):
+    CH4    55.000 %    CO2    45.000 %    TOTAL 100.000 %  [OK]
+  Tecnologia : mea
+  Operacional: {'P_bar': 2.5, 'L_over_V': 25.0, 'N_stages': 10, 'height_m': 14.0}
+```
+
+```bash
+biogassim run projeto_mea/case.json            # 4) roda o caso MEA, imprime dashboard
+```
+```
+FEED GAS: CH4 55.00 %  CO2 45.00 %
+UPGRADED GAS: CH4 100.00 %  CO2 0.00 %  H2S 0.0000 % (0.0 ppm)
+PERFORMANCE
+  CH4 Recovery 99.71 %   CO2 Removal 100.00 %   Energy 1.870 kWh/Nm3
+GAS QUALITY (treated): LHV 35.790  HHV 39.720  Wobbe 53.370  Density 0.716  Rel.Dens. 0.554
+RUN -- projeto_mea [mea]  convergiu=True iter=4
+```
+
+```bash
+# 5) propriedades da mistura em T=313.15 K e P=2.5 bar (MM, Z, densidade, LHV/HHV, Wobbe, SG)
+biogassim props CH4=0.55 CO2=0.45 --T 313.15 --P 2.5
+```
+```
+PROPRIEDADES DA MISTURA
+  basis: mole   T_K: 313.15   P_bar: 2.5   x_CH4: 0.5500   x_CO2: 0.4500
+  molar_mass_g_per_mol    : 28.6282
+  Z                       : 0.9929
+  density_kg_per_Nm3      : 1.2772
+  LHV_MJ_per_Nm3          : 19.6870   HHV_MJ_per_Nm3 : 21.8460
+  Wobbe_index_MJ_per_Nm3 : 21.9740   specific_gravity: 0.9884
+```
+
+```bash
+biogassim report --case projeto_mea/case.json  # 6) relatório HTML do caso MEA
+```
+```
+...
+Relatorio HTML: projeto_mea_report.html
+```
+
+```bash
+# 7) compara tecnologias via CLI (herda feed/vazão do caso) e exporta relatório
+biogassim compare water mea --case projeto_mea/case.json --export comparacao.xlsx
+```
+```
+COMPARAÇÃO -- feed CH4=55.0%, CO2=45.0%  flow=120.0 mol/s  modo=standard
+Método              Conv  Pureza%  Recup%  CO2r%     kW   kWh/Nm³  USD/Nm³
+Water Scrubbing        S  100.00   93.23 100.00  2335.9   0.471   0.0259
+MEA (amina)            S  100.00   99.81 100.00  9813.5   1.847  82.1110
+2/2 métodos convergiram.
+  Melhor por purity_CH4            : Water Scrubbing
+  Melhor por recovery_CH4          : MEA (amina)
+  Melhor por total_kW              : Water Scrubbing
+  Melhor por specific_cost_usd_per_Nm3: Water Scrubbing
+  Ranking ponderado (topo): Water Scrubbing (score 0.75)
+Exportado: comparacao.xlsx
+```
+
+**Chaves aceitas por `set`** (parâmetros de processo): `P_bar`, `L_over_V`,
+`N_stages`, `height_m`, `flow_mols` (ou `flow`), `tech` (ou `technology`) e as
+espécies de gás (`CH4`, `CO2`, `H2S`, `N2`, ...). **Temperatura e pressão para
+propriedades** passam como flags em `props`/`batch` (`--T`, `--P`); a pressão do
+processo (absorvedor) é `P_bar` em `set`. O `compare` herda composição e vazão do
+caso e aceita ainda `--flow`, `--mode optimized` (otimiza antes de rodar) e
+`--export` (`.csv/.json/.html/.xlsx/.pdf`).
+
 ### Misturas multicomponente e simulação em lote
 
 A composição não é restrita a CH₄–CO₂: qualquer subconjunto dos gases

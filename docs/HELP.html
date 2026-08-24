@@ -366,6 +366,82 @@ Relatorio HTML: meu_projeto_report.html
 <p>Os arquivos <code>meu_projeto/case.json</code>, <code>sweep.csv</code>, <code>results.xlsx</code> e
 <code>meu_projeto_report.html</code> são gravados no diretório corrente; o <code>results/</code> do
 projeto recebe as saídas por caso.</p>
+<h4 id="exemplo-completo-cli-mea-parametros-de-processo-e-comparacao">Exemplo completo (CLI): MEA, parâmetros de processo e comparação</h4>
+<p>Agora com <strong>lavagem química por MEA</strong> (amina): cria o projeto, define o feed
+binário CH₄–CO₂, <strong>altera parâmetros de processo</strong> (pressão, razão L/V, estágios,
+altura, vazão), roda, calcula propriedades em <strong>temperatura e pressão</strong> dadas,
+gera relatório e <strong>compara tecnologias</strong> pela CLI. (MEA cobre CH₄–CO₂; a absorção
+reativa de H₂S/NH₃ em amina é roadmap — por isso o feed aqui é binário.)</p>
+<pre class="term"><code>biogassim new projeto_mea --tech mea          # 1) cria projeto MEA (P=2, L/V=20, N=8, H=12)
+</code></pre>
+<pre class="arch"><code>Projeto criado em 'projeto_mea'
+  Caso padrão: projeto_mea\case.json
+  Resultados : projeto_mea/results/
+</code></pre>
+<pre class="term"><code>biogassim set CH4=0.55 CO2=0.45 --case projeto_mea/case.json   # 2) feed binário CH4-CO2
+</code></pre>
+<pre class="arch"><code>Caso salvo em 'projeto_mea/case.json'
+  Composicao da alimentacao (normalizada para 100%):
+    CH4    55.000 %    CO2    45.000 %    TOTAL 100.000 %  [OK]
+  Tecnologia : mea
+  Operacional: {'P_bar': 2.0, 'L_over_V': 20.0, 'N_stages': 8, 'height_m': 12.0}
+</code></pre>
+<pre class="term"><code># 3) altera parâmetros de processo: pressão, razão L/V, estágios, altura, vazão
+biogassim set P_bar=2.5 L_over_V=25 N_stages=10 height_m=14 flow_mols=120 --case projeto_mea/case.json
+</code></pre>
+<pre class="arch"><code>Caso salvo em 'projeto_mea/case.json'
+  Composicao da alimentacao (normalizada para 100%):
+    CH4    55.000 %    CO2    45.000 %    TOTAL 100.000 %  [OK]
+  Tecnologia : mea
+  Operacional: {'P_bar': 2.5, 'L_over_V': 25.0, 'N_stages': 10, 'height_m': 14.0}
+</code></pre>
+<pre class="term"><code>biogassim run projeto_mea/case.json            # 4) roda o caso MEA, imprime dashboard
+</code></pre>
+<pre class="arch"><code>FEED GAS: CH4 55.00 %  CO2 45.00 %
+UPGRADED GAS: CH4 100.00 %  CO2 0.00 %  H2S 0.0000 % (0.0 ppm)
+PERFORMANCE
+  CH4 Recovery 99.71 %   CO2 Removal 100.00 %   Energy 1.870 kWh/Nm3
+GAS QUALITY (treated): LHV 35.790  HHV 39.720  Wobbe 53.370  Density 0.716  Rel.Dens. 0.554
+RUN -- projeto_mea [mea]  convergiu=True iter=4
+</code></pre>
+<pre class="term"><code># 5) propriedades da mistura em T=313.15 K e P=2.5 bar (MM, Z, densidade, LHV/HHV, Wobbe, SG)
+biogassim props CH4=0.55 CO2=0.45 --T 313.15 --P 2.5
+</code></pre>
+<pre class="arch"><code>PROPRIEDADES DA MISTURA
+  basis: mole   T_K: 313.15   P_bar: 2.5   x_CH4: 0.5500   x_CO2: 0.4500
+  molar_mass_g_per_mol    : 28.6282
+  Z                       : 0.9929
+  density_kg_per_Nm3      : 1.2772
+  LHV_MJ_per_Nm3          : 19.6870   HHV_MJ_per_Nm3 : 21.8460
+  Wobbe_index_MJ_per_Nm3 : 21.9740   specific_gravity: 0.9884
+</code></pre>
+<pre class="term"><code>biogassim report --case projeto_mea/case.json  # 6) relatório HTML do caso MEA
+</code></pre>
+<pre class="arch"><code>...
+Relatorio HTML: projeto_mea_report.html
+</code></pre>
+<pre class="term"><code># 7) compara tecnologias via CLI (herda feed/vazão do caso) e exporta relatório
+biogassim compare water mea --case projeto_mea/case.json --export comparacao.xlsx
+</code></pre>
+<pre class="arch"><code>COMPARAÇÃO -- feed CH4=55.0%, CO2=45.0%  flow=120.0 mol/s  modo=standard
+Método              Conv  Pureza%  Recup%  CO2r%     kW   kWh/Nm³  USD/Nm³
+Water Scrubbing        S  100.00   93.23 100.00  2335.9   0.471   0.0259
+MEA (amina)            S  100.00   99.81 100.00  9813.5   1.847  82.1110
+2/2 métodos convergiram.
+  Melhor por purity_CH4            : Water Scrubbing
+  Melhor por recovery_CH4          : MEA (amina)
+  Melhor por total_kW              : Water Scrubbing
+  Melhor por specific_cost_usd_per_Nm3: Water Scrubbing
+  Ranking ponderado (topo): Water Scrubbing (score 0.75)
+Exportado: comparacao.xlsx
+</code></pre>
+<p><strong>Chaves aceitas por <code>set</code></strong> (parâmetros de processo): <code>P_bar</code>, <code>L_over_V</code>,
+<code>N_stages</code>, <code>height_m</code>, <code>flow_mols</code> (ou <code>flow</code>), <code>tech</code> (ou <code>technology</code>) e as
+espécies de gás (<code>CH4</code>, <code>CO2</code>, <code>H2S</code>, <code>N2</code>, ...). <strong>Temperatura e pressão para
+propriedades</strong> passam como flags em <code>props</code>/<code>batch</code> (<code>--T</code>, <code>--P</code>); a pressão do
+processo (absorvedor) é <code>P_bar</code> em <code>set</code>. O <code>compare</code> herda composição e vazão do
+caso e aceita ainda <code>--flow</code>, <code>--mode optimized</code> (otimiza antes de rodar) e
+<code>--export</code> (<code>.csv/.json/.html/.xlsx/.pdf</code>).</p>
 <h3 id="misturas-multicomponente-e-simulacao-em-lote">Misturas multicomponente e simulação em lote</h3>
 <p>A composição não é restrita a CH₄–CO₂: qualquer subconjunto dos gases
 <strong>CH₄, CO₂, N₂, O₂, H₂, H₂O, H₂S, NH₃, CO, Ar</strong> é aceito (adicionar espécies é
