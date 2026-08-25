@@ -119,6 +119,17 @@ def test_cli_sweep_exports_csv(tmp_path):
     assert out.exists()
 
 
+def test_cli_sweep_exports_xlsx(tmp_path):
+    """--out .xlsx gera Excel de verdade (com openpyxl) ou cai em .csv sem ele."""
+    out = tmp_path / "sweep.xlsx"
+    main(["sweep", "CH4=0.4:0.6:0.1", "--tech", "water", "--out", str(out)])
+    assert out.exists() or (tmp_path / "sweep.csv").exists()
+    if out.exists():
+        openpyxl = pytest.importorskip("openpyxl")
+        ws = openpyxl.load_workbook(out)["sweep"]
+        assert "specific_cost_usd_per_Nm3" in [c.value for c in ws[1]]
+
+
 def test_cli_export_falls_back_when_no_openpyxl(tmp_path):
     case = str(tmp_path / "case.json")
     main(["set", "CH4=0.5", "--case", case])

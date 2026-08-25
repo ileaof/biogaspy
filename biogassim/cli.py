@@ -347,6 +347,15 @@ def _cmd_sweep(args):
     if args.out:
         if args.out.endswith(".json"):
             export_json({"sweep": rows}, args.out)
+        elif args.out.endswith((".xlsx", ".xls")):
+            try:
+                from .Export import export_excel
+                export_excel({"sweep": rows}, args.out)
+            except ImportError:
+                alt = os.path.splitext(args.out)[0] + ".csv"
+                export_csv(rows, alt)
+                print(f"openpyxl ausente (instale o extra 'excel'); exportado CSV: {alt}")
+                return
         else:
             export_csv(rows, args.out)
         print(f"Exportado: {args.out}")
