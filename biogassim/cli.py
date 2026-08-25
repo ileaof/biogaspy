@@ -326,19 +326,21 @@ def _cmd_sweep(args):
             operating = cases.load_case(args.case).operating
         rows = cases.sweep_composition(args.tech, cases.frange(a, b, step),
                                        operating=operating, flow=args.flow)
-        print("=" * 78)
+        print("=" * 88)
         print(f"VARREDURA DE COMPOSICAO -- {args.tech} (CH4 {a:.0%}..{b:.0%})")
-        print("=" * 78)
-        hdr = f"{'CH4%':>6}{'Pur%':>8}{'Rec%':>8}{'CO2r%':>8}{'kW':>9}{'kWh/Nm3':>9}{'D(m)':>7}{'Flood%':>8}"
+        print("=" * 88)
+        hdr = (f"{'CH4%':>6}{'Pur%':>8}{'Rec%':>8}{'CO2r%':>8}{'kW':>9}{'kWh/Nm3':>9}"
+               f"{'D(m)':>7}{'Flood%':>8}{'USD/Nm3':>10}")
         print(hdr)
-        print("-" * 78)
+        print("-" * 88)
         for r in rows:
             def f(v, w, dec=2):
                 return f"{v:>{w}.{dec}f}" if isinstance(v, (int, float)) else f"{'-':>{w}}"
             print(f"{f(r['feed_CH4_pct'], 6, 1)}{f(r['purity_CH4'], 8)}{f(r['recovery_CH4'], 8)}"
                   f"{f(r['CO2_removal'], 8)}{f(r['total_kW'], 9, 1)}{f(r['specific_kWh_per_Nm3'], 9, 3)}"
-                  f"{f(r['diameter_m'], 7)}{f(r['flooding_pct'], 8, 1)}")
-        print("-" * 78)
+                  f"{f(r['diameter_m'], 7)}{f(r['flooding_pct'], 8, 1)}"
+                  f"{f(r.get('specific_cost_usd_per_Nm3'), 10, 4)}")
+        print("-" * 88)
     else:
         raise SystemExit("Uso: biogassim sweep CH4=inicio:fim:passo | H2S=inicio:fim:passo "
                          "(ex.: CH4=0.20:0.95:0.05, H2S=0:0.05:0.005).")
