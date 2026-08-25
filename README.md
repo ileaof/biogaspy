@@ -125,7 +125,7 @@ biogassim set CH4=46 CO2=53 H2S=1 --case meu_projeto/case.json  # ternário CH4-
 biogassim run meu_projeto/case.json             # roda o caso, imprime dashboard
 biogassim run meu_projeto/case.json --max-h2s-ppm 4   # impõe limite de H2S no tratado
 biogassim props CH4=0.60 CO2=0.40 --P 20        # MM, Z, densidade, LHV/HHV, Wobbe, SG
-biogassim sweep CH4=0.20:0.95:0.05 --out sweep.csv    # estudo paramétrico de composição
+biogassim sweep CH4=0.20:0.95:0.05 --out sweep.csv    # estudo paramétrico (--out: .csv/.json/.xlsx)
 biogassim sweep H2S=0:0.05:0.005 --tech water   # varredura do contaminante H2S
 biogassim export results.xlsx --case meu_projeto/case.json
 biogassim report --case meu_projeto/case.json   # relatório HTML
@@ -139,6 +139,11 @@ do contaminante H₂S (`H2S=...`, mantendo a razão CH₄:CO₂) e tabela pureza
 recuperação, remoção de CO₂/H₂S, perda de metano, consumo de solvente/água,
 energia, diâmetro/altura da coluna, perda de carga, margem de inundação, custo e
 qualidade do gás tratado — a base dos mapas de desempenho.
+
+O `--out` grava a tabela nos formatos **`.csv`**, **`.json`** e **`.xlsx`** — a
+extensão do arquivo decide. O `.xlsx` requer o extra `excel` (openpyxl); se ele
+não estiver instalado, a varredura exporta automaticamente um `.csv` de mesmo
+nome, com aviso, em vez de falhar.
 
 #### Exemplo completo (CLI): biogás CH₄–CO₂–H₂S
 
