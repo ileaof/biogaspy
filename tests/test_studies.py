@@ -16,9 +16,19 @@ def test_sweep_1d_shape_and_recovery_trend():
 
 
 def test_sweep_1d_over_composition():
+    # Com a regeneração Wellmann (reciclo do flash 1 -> feed), a recuperação
+    # global fica robusta (~97-100%) em toda a faixa de composição: feeds
+    # mais ricos em CO2 dissolvem mais CH4 em termos absolutos e devolvem
+    # mais CH4 via reciclo -- a monotonia crescente do modelo once-through
+    # (recuperação sobe com CH4) não vale mais para a planta completa.
     rows = studies.sweep_1d("water", "CH4", cases.frange(0.4, 0.8, 0.2))
+    assert all(r["converged"] for r in rows)
     recs = [r["recovery_CH4"] for r in rows]
-    assert recs == sorted(recs)                        # recuperação sobe com CH4
+    assert all(95.0 <= r <= 100.0 for r in recs)
+    # a pureza do biometano é alta (>= 95%) em toda a faixa de composição
+    # (o lean sai limpo da dessorção com ar; pureza saturada em ~100%)
+    pures = [r["purity_CH4"] for r in rows]
+    assert all(p >= 95.0 for p in pures)
 
 
 def test_sweep_2d_shape():

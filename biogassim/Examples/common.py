@@ -52,6 +52,7 @@ def metrics_from_absorber(name: str, result, gas_in: Stream) -> dict:
         "iterations": result.iterations,
         "mass_balance_error": float(result.mass_balance_error),
         "gpdc_extrapolated": bool(getattr(result, "gpdc_extrapolated", False)),
+        "liquid_capacity_limited": bool(getattr(result, "liquid_capacity_limited", False)),
     }
 
 

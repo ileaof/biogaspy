@@ -6,6 +6,53 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+### Adicionado (auditoria de prontidão — Fases 2 e 3, 2026-08-30)
+
+- **Correção de Poynting na fuga líquida** (`Thermodynamics/Henry.py`):
+  Π = exp(v̄·(P − Psat,solvente)/RT) com volume molar parcial do gás dissolvido
+  por espécie (CO2 34, CH4 37.5, N2 40.5, H2S 32, O2 31, H2 26.2, Ar 32,
+  CO 33, NH3 24 cm³/mol). `K_value`/`K_values`/`x_eq` aceitam `poynting=True`;
+  efeito ~2–3% a 20 bar (desprezível a 1 atm).
+- **Validação multi-temperatura de H(T)** vs Sander (2015): dHsol/R do modelo
+  (CO2 2405 K, CH4 1684 K, H2S 2526 K) contra série de Sander (2400/1900/2100 K)
+  nas razões kH(313, 323 K)/kH(298 K) — desvios <1% (CO2), ~6% (CH4),
+  ~10% (H2S), tolerâncias documentadas.
+- **Testes estruturais two-film**: limites m→0 e m≫1 de K_y/K_x, consistência
+  de fluxo interfacial (ky(y−yi)=kx(xi−x)), controle de filme líquido para
+  CO2/água (m=H/P≫1 → Kx≈kx), monotonia do absorvedor em estágios e L/V.
+- **Regeneração do solvente físico** (`UnitOperations/Regeneration.py`):
+  água rica → flash 1 à média pressão (gás rico em CH4 recomprimido e
+  devolvido à ALIMENTAÇÃO do absorvedor — arquitetura Wellmann) → flash 2 a
+  ~1 atm (vent de CO2) → purge + makeup + bomba. Flash TP via Henry
+  (Rachford-Rice, K_i = H_i/P; K_H2O = Psat/P). `strip_air=True` emula a
+  coluna de dessorção varrida a ar (lean limpo; sem isso o x_CO2 residual de
+  ~7e-4 fixa o topo em ~5% CO2). Loop feed+reciclo/solvente resolvido por
+  ponto fixo em `Examples/WaterScrubbing.py` (converge em ~7-8 passes,
+  contração ~x0.07) — a análise prévia de "divergência" era artefato do
+  esquema amortizado de dois passes.
+- **Secador TSA + umidade** (`Properties/Moisture.py`, `UnitOperations/Dryer.py`):
+  Psat de água via Magnus-Tetens (Buck 1996, validado <0.5% em 10–60 °C),
+  ponto de orvalho, conteúdo em mg/Nm³ (base úmida, 44.615 mol/Nm³ a STP) e
+  secador a leito (remoção estequiométrica, duty ~4.5 MJ/kg H2O, ponto de
+  orvalho de saída). Corrigido bug de base: especificação agora imposta na
+  base úmida da SAÍDA (não da entrada).
+- **Capacidade líquida no dimensionamento** (`Hydraulics/Packing.py`,
+  `UnitOperations/Absorber.py`): com GPDC extrapolado (X≫2), o diâmetro passa
+  a ser calculado por A = Q_L/j_L,máx (Kister; 0.020 m/s aleatório, 0.010–0.012
+  estruturado) com flag `liquid_capacity_limited`.
+- **Economia: circulação ≠ consumo de água**: `cases.py` agora cobra o
+  makeup (purge + evaporação), não a circulação (L/V); métricas separadas
+  `water_m3_per_h` (consumo) e `water_circulation_m3_per_h`. Ponto de orvalho
+  e umidade do gás tratado reportados (`treated_H2O_mg_per_Nm3`,
+  `treated_dew_point_C`).
+- **Resultados do caso padrão (feed 47/53, 20 bar, L/V=100) com regeneração
+  fechada**: pureza 100%, recuperação global 98.7%, reciclo 10.3 mol/s
+  (23.7% CH4), CH4 devolvido 2.45 mol/s, perda no vent 0.65 mol/s, makeup
+  13.0 m³/h (2% da circulação de 648.5 m³/h), 0.518 kWh/Nm³.
+- Testes: +28 em `tests/test_phase2_phase3.py` (Poynting, Sander, two-film,
+  regeneração com balanços, dryer/orvalho, capacidade líquida, economia).
+  Suíte completa: **302 passando**.
+
 ### Corrigido (auditoria de prontidão para produção — Fase 1, 2026-08-30)
 Auditoria completa em `BIOGASPY_PRODUCTION_READINESS_AUDIT.md` (classificação
 nível 2 — simulador de pesquisa; **NÃO pronto para produção**). Correções da

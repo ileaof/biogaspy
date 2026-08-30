@@ -463,3 +463,38 @@ regimes permanece Fase 3 do roadmap. Diâmetro/ΔP de water scrubbing com
 (L/V) molar ≳ 60 NÃO devem ser usados para projeto. Nenhum modelo científico
 correto foi alterado; a classificação do simulador (nível 2 — pesquisa) e o
 veredito **PRODUCTION READY: NO** permanecem até Fases 2–5.
+
+## ADENDO — Fases 2 e 3 executadas (2026-08-30)
+
+Implementação dos itens de validação estendida (Fase 2) e do loop de
+planta completa (Fase 3) do roadmap, travados por 28 testes novos
+(`tests/test_phase2_phase3.py`; suíte completa: **302 passando**).
+
+### Fase 2 — validação estendida
+| Item | Ação |
+|---|---|
+| Poynting ausente no VLE de alta pressão | Π = exp(v̄·(P−Psat)/RT) com v̄ por espécie (Henry.py); `poynting=True` opcional; ~2–3% a 20 bar |
+| H(T) sem validação multi-T | séries van't Hoff do modelo vs Sander 2015 (dHsol/R; desvios <1% CO2, ~6% CH4, ~10% H2S em 313–323 K) |
+| Two-film sem testes estruturais | limites m→0/∞ de Ky/Kx, fluxo interfacial idêntico nos dois lados, controle de filme líquido p/ CO2-água, monotonia em estágios e L/V |
+
+### Fase 3 — planta completa (water scrubbing)
+| Item | Ação |
+|---|---|
+| Sem loop de regeneração | `Regeneration.py`: 2 flashes Henry (Rachford-Rice), flash 1 → reciclo recomprimido à **alimentação** (Wellmann), flash 2 → vent, purge+makeup+bomba; strip_air emula dessorção com ar (lean limpo). Loop resolvido por ponto fixo em `WaterScrubbing.py` (converge ~7-8 passes) |
+| Capacidade líquida (X≫2) | `Packing.max_liquid_flux` + `liquid_capacity_limited`: D = sqrt(4·(Q_L/j_L,máx)/π) quando GPDC extrapola (Kister) |
+| Secador/ponto de orvalho | `Moisture.py` (Magnus/Buck, mg/Nm³, orvalho) + `Dryer.py` (TSA, 4.5 MJ/kg H2O); bug de base úmida corrigido (espec. na saída) |
+| Economia cobrava circulação | `cases.py`: cobra makeup; métricas `water_m3_per_h` (consumo) vs `water_circulation_m3_per_h` |
+
+**Nota de processo:** a tentativa prévia de realimentar o gás do flash 1 ao
+absorvedor com amortização de dois passes parecia divergir; iteração de ponto
+fixo direta demonstrou **convergência** (contração ~x0.07) — a arquitetura
+Wellmann com reciclo à alimentação é a implementada, elevando a recuperação a
+98.7% sem contaminar o produto (o CO2 do reciclo é reabsorvido e sai pelo
+vent). A pureza do topo é limitada pelo carregamento residual do lean: sem
+strip de ar, x_CO2(P_flash2/H_CO2 ~ 7e-4) fixa o topo em ~5% de CO2; com ar,
+pureza ~100% no caso padrão. Makeup (13 m³/h) ≪ circulação (648 m³/h).
+
+**Limitações restantes (Fases 4–5 do roadmap):** MEA/MDEA sem densidade de
+energia de regeneração detalhada (custo USD/Nm³ do MEA plausivelmente
+superestimado), validação contra dados de planta real, documentação de
+usuário, empacotamento/distribuição.

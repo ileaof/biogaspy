@@ -26,6 +26,11 @@ class Packing:
     C1: float = 4.0
     C2: float = 2.0
     C3: float = 0.4
+    # limite de capacidade LÍQUIDA: fluxo volumétrico máximo de líquido por
+    # unidade de área (m³/m²·s). Em cargas L/G altas (water scrubbing, X>>2)
+    # é este critério -- não o GPDC -- que dimensiona a seção da coluna
+    # (guia de Kister: random ~0.020 m/s; estruturado ~0.012 m/s).
+    max_liquid_flux: float = 0.020
 
 
 PACKINGS: dict[str, Packing] = {
@@ -39,11 +44,11 @@ PACKINGS: dict[str, Packing] = {
     "Intalox_50":  Packing("IMTP 50",             "random", 112.0, 0.97,  55.0, 0.050, 3.5, 2.0, 0.35),
     "Hilflow_50":  Packing("Hiflow ring 50mm",    "random", 110.0, 0.96,  50.0, 0.050, 3.0, 1.8, 0.35),
     # -- structured: Mellapak / Sulzer (Stichlmair et al. 1989; Sulzer data) --
-    "Mellapak_125Y":  Packing("Mellapak 125Y",  "structured", 125.0, 0.98, 30.0, 0.020, 5.0, 3.0, 0.45),
-    "Mellapak_250Y":  Packing("Mellapak 250Y",  "structured", 250.0, 0.97, 75.0, 0.020, 5.0, 3.0, 0.45),
-    "Mellapak_350Y":  Packing("Mellapak 350Y",  "structured", 350.0, 0.96, 110.0, 0.018, 5.0, 3.0, 0.45),
-    "Mellapak_250X":  Packing("Mellapak 250X",  "structured", 250.0, 0.97, 65.0, 0.020, 5.0, 3.0, 0.45),
-    "Sulzer_BX":      Packing("Sulzer BX",      "structured", 500.0, 0.95, 210.0, 0.012, 5.0, 3.0, 0.40),
+    "Mellapak_125Y":  Packing("Mellapak 125Y",  "structured", 125.0, 0.98, 30.0, 0.020, 5.0, 3.0, 0.45, 0.012),
+    "Mellapak_250Y":  Packing("Mellapak 250Y",  "structured", 250.0, 0.97, 75.0, 0.020, 5.0, 3.0, 0.45, 0.012),
+    "Mellapak_350Y":  Packing("Mellapak 350Y",  "structured", 350.0, 0.96, 110.0, 0.018, 5.0, 3.0, 0.45, 0.010),
+    "Mellapak_250X":  Packing("Mellapak 250X",  "structured", 250.0, 0.97, 65.0, 0.020, 5.0, 3.0, 0.45, 0.012),
+    "Sulzer_BX":      Packing("Sulzer BX",      "structured", 500.0, 0.95, 210.0, 0.012, 5.0, 3.0, 0.40, 0.010),
 }
 
 

@@ -148,7 +148,8 @@ def _make_solvent(solvent_cls, amine: str, w: float):
 def _adapt_water(composition, flow, p):
     out = WaterScrubbing.run_case(
         P_bar=p["P_bar"], L_over_V=p["L_over_V"], N_stages=int(p["N_stages"]),
-        height=p["height_m"], flow=flow, save=False, composition=composition)
+        height=p["height_m"], flow=flow, save=False, composition=composition,
+        regen=bool(p.get("regen", True)))
     m = dict(out["metrics"])
     m["operating_pressure_bar"] = p["P_bar"]
     return m

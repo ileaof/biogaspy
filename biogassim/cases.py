@@ -145,6 +145,17 @@ def _treated_gas_quality(m: dict, result, P_bar: float) -> dict:
         m["treated_density_kg_per_Nm3"] = round(tp.density_normal, 4)
         m["treated_specific_gravity"] = round(tp.specific_gravity, 4)
         m["treated_Z"] = round(tp.Z, 5)
+        # umidade do gás tratado ANTES do secador: conteúdo em mg/Nm³ (base
+        # úmida) e ponto de orvalho de H2O a P de entrega. Limites de motor/
+        # gasoduto: 60-200 mg/Nm³ -> exige secador (leito de tam) (auditoria
+        # §19: o ponto de orvalho é condição de entrega, não opcional).
+        if "H2O" in sp:
+            y_w = float(y[sp.index("H2O")])
+            if y_w > 1e-12:
+                from .Properties.Moisture import dew_point_H2O, water_content_mg_per_nm3
+                m["treated_H2O_mg_per_Nm3"] = round(water_content_mg_per_nm3(y_w), 1)
+                m["treated_dew_point_C"] = round(dew_point_H2O(y_w, P_bar * 1e5)
+                                                 - 273.15, 1)
     # carregamento de H2S na fase líquida (saída de fundo)
     if result.liquid_out is not None and "H2S" in sp and "H2O" in sp:
         xl = result.liquid_out.z
@@ -174,10 +185,12 @@ def run_case(case: Case, save: bool = False, outdir: str | None = None) -> dict:
         composition = ({"CH4": x_ch4 / denom, "CO2": x_co2 / denom}
                        if denom > 0 else {"CH4": x_ch4, "CO2": x_co2})
 
+    regen = bool((case.operating or {}).get("regen", case.technology == "water"))
     out = mod.run_case(P_bar=op["P_bar"], L_over_V=op["L_over_V"],
                        N_stages=int(op["N_stages"]), height=op["height_m"],
                        flow=case.feed["flow_mols"], save=False,
-                       composition=composition)
+                       composition=composition,
+                       **({"regen": regen} if case.technology == "water" else {}))
     m = dict(out["metrics"])
 
     # contexto de composição + propriedades do gás de alimentação (multi-espécie)
@@ -195,17 +208,26 @@ def run_case(case: Case, save: bool = False, outdir: str | None = None) -> dict:
     result = out["result"]
     m = _treated_gas_quality(m, result, op["P_bar"])
 
-    # consumo de solvente / água
+    # consumo de solvente / água: circulação (L/V) ≠ consumo (makeup/purge)
     solvent_flow = op["L_over_V"] * case.feed["flow_mols"]           # mol/s
     m["solvent_flow_mols"] = round(solvent_flow, 2)
     if case.technology == "water":
-        m["water_m3_per_h"] = round(solvent_flow * 0.018 / 1000.0 * 3600.0, 2)
+        m["water_circulation_m3_per_h"] = round(solvent_flow * 0.018 / 1000.0 * 3600.0, 2)
+        # com regeneração, o consumo real de água fresca é o makeup (purge);
+        # sem regeneração a água seria consumida toda (modelo once-through)
+        if regen:
+            m["water_m3_per_h"] = round(m.get("water_m3_per_h",
+                                              0.02 * solvent_flow * 0.018 / 1000.0 * 3600.0), 2)
+        else:
+            m["water_m3_per_h"] = round(solvent_flow * 0.018 / 1000.0 * 3600.0, 2)
 
-    # economia
+    # economia (água cobrada é o CONSUMO/makeup, nunca a circulação)
     bio_nm3h = result.gas_out.flow * 0.0224 * 3600 if result.gas_out else 0.0
     co2_kg_h = case.feed["flow_mols"] * x_co2 * (m.get("CO2_removal", 0) / 100.0) * 0.044 * 3600
     econ = Economics.from_process(total_kw=m.get("total_kW", 0.0),
-                                  biometane_nm3h=bio_nm3h, co2_avoided_kg_h=co2_kg_h)
+                                  biometane_nm3h=bio_nm3h,
+                                  water_m3h=m.get("water_m3_per_h", 0.0) or 0.0,
+                                  co2_avoided_kg_h=co2_kg_h)
     m["opex_usd_yr"] = round(econ.opex_usd_yr, 0)
     m["specific_cost_usd_per_Nm3"] = round(econ.specific_cost_usd_per_nm3, 4)
     m["co2_avoided_t_per_yr"] = round(econ.co2_avoided_t_per_yr, 1)

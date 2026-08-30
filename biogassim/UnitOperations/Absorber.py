@@ -74,6 +74,7 @@ class AbsorberResult(UnitResult):
     residual_CO2: float = 0.0
     mass_balance_error: float = 0.0    # erro relativo máx. por componente (ε_mass)
     gpdc_extrapolated: bool = False    # True = X fora da faixa do gráfico GPDC
+    liquid_capacity_limited: bool = False  # True = diâmetro fixado pela carga líquida (X>>2)
     flood_parameter_X: float = 0.0     # X = (L/G)_mass·√(ρg/ρl) usado no sizing
 
 
@@ -529,15 +530,32 @@ class Absorber:
         L_over_G = L_mass / max(G_mass, 1e-9)
         res.flood_parameter_X = float(L_over_G * np.sqrt(rho_g / max(rho_l, 1e-9)))
         res.gpdc_extrapolated = not is_gpdc_valid(L_over_G, rho_g, rho_l)
-        if res.gpdc_extrapolated and not res.message:
-            res.message = (f"GPDC extrapolado (X={res.flood_parameter_X:.1f} > 2): "
-                           "coluna governada pela carga de líquido; diâmetro e ΔP "
-                           "NÃO confiáveis para projeto (ver auditoria/roadmap).")
         u_flood = flooding_velocity(rho_g, rho_l, mu_l, packing, L_over_G)
         u_op = operating_velocity(u_flood, 0.7)
-        if s.diameter is None:
-            D = column_diameter(G_mass, rho_g, u_op)
-        else:
+        D = column_diameter(G_mass, rho_g, u_op)
+        # ---- regime de carga líquida (X >> 2, fora do gráfico GPDC) -------- #
+        # Em water scrubbing (L/V molar ~100 => (L/G)_mass ~ 25-100) a coluna é
+        # governada pela CAPACIDADE de líquido: dimensiona a seção A = V_L /
+        # j_L,max (fluxo volumétrico máximo do recheio) e usa o MAIOR diâmetro.
+        # (Critério de Kister -- ver Auditoria, Fase 3; o GPDC/exponencial
+        # extrapola dezenas de ordens de grandeza nessa região.)
+        res.liquid_capacity_limited = False
+        if res.gpdc_extrapolated and packing.max_liquid_flux > 0 and s.diameter is None:
+            q_l = L_mass / max(rho_l, 1e-9)                 # m³/s
+            D_liq = float(np.sqrt(4.0 * (q_l / packing.max_liquid_flux) / np.pi))
+            if D_liq > D:
+                res.liquid_capacity_limited = True
+                D = D_liq
+                u_op = G_mass / (rho_g * max(np.pi * D**2 / 4, 1e-9))
+                if not res.message:
+                    res.message = (f"GPDC extrapolado (X={res.flood_parameter_X:.1f} > 2): "
+                                   f"coluna dimensionada por CAPACIDADE LÍQUIDA "
+                                   f"(j_L,máx={packing.max_liquid_flux:.3f} m³/m²s); "
+                                   "diâmetro é limite de carga líquida, não de flooding.")
+        elif res.gpdc_extrapolated and not res.message:
+            res.message = (f"GPDC extrapolado (X={res.flood_parameter_X:.1f} > 2): "
+                           "diâmetro/ΔP fora da validade do gráfico de Eckert.")
+        if s.diameter is not None:
             D = s.diameter
             u_op = G_mass / (rho_g * np.pi * D**2 / 4) if D > 0 else u_op
         res.diameter = D

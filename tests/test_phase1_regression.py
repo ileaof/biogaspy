@@ -12,12 +12,12 @@ import sys
 import numpy as np
 import pytest
 
+from biogassim.Properties.Mixtures import wilke_viscosity
 from biogassim.Properties.Water import (
     water_density,
     water_surface_tension,
     water_viscosity,
 )
-from biogassim.Properties.Mixtures import wilke_viscosity
 from biogassim.Thermodynamics.ActivityModels import NRTL
 
 
@@ -105,7 +105,6 @@ def test_nrtl_hand_computed_binary_point():
 def test_nrtl_gibbs_duhem_differential():
     """Consistência termodinâmica (Gibbs-Duhem diferencial): deve valer
     x1·dlnγ1/dx1 + x2·dlnγ2/dx1 = 0. Detecta transposição de índices."""
-    d = 1.0e-6
     x1 = 0.5
     eps = 1.0e-6
     g_p = NRTL(tau=_TAU, alpha=_ALPHA).gamma(np.array([x1 + eps, 1.0 - x1 - eps]))
