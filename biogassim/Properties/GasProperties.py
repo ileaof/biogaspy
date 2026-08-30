@@ -20,9 +20,13 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 from ..Core.constants import R_J_MOL_K
-from ..Thermodynamics import PengRobinson
-from ..Thermodynamics.Interactions import kij_matrix
 from .components import get as get_component
+
+# A importação de Thermodynamics é feita DENTRO das funções que usam PR:
+# Thermodynamics.eos importa Properties.components e o __init__ do pacote
+# Properties importa este módulo -- um import no topo recriaria o ciclo
+# "Thermodynamics -> Properties -> Thermodynamics" que quebra
+# `from biogassim.Thermodynamics import PengRobinson` (import circular).
 
 # --- constantes de referência --------------------------------------------- #
 T_NORMAL = 273.15            # K   (0 °C)
@@ -112,6 +116,8 @@ def mixture_molar_mass(x_ch4: float, x_co2: float) -> float:
 
 def compressibility(x_ch4: float, x_co2: float, T: float, P: float) -> float:
     """Fator de compressibilidade Z da mistura (Peng-Robinson, fase vapor)."""
+    from ..Thermodynamics import PengRobinson
+    from ..Thermodynamics.Interactions import kij_matrix
     species = ["CH4", "CO2"]
     eos = PengRobinson([get_component(s) for s in species], kij=kij_matrix(species))
     return float(eos.Z_and_phi(T, P, [x_ch4, x_co2], phase="vapor").Z)
@@ -225,6 +231,8 @@ def mixture_properties_general(comp: dict, T: float = 298.15, P: float = P_NORMA
     contribuição molar de cada componente combustível.
     """
     x = to_mole_fractions(comp, basis)
+    from ..Thermodynamics import PengRobinson
+    from ..Thermodynamics.Interactions import kij_matrix
     species = list(x)
     comps = [get_component(s) for s in species]
     frac = [x[s] for s in species]

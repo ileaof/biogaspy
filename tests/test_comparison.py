@@ -253,6 +253,7 @@ def test_case_without_comparison_loads_none(tmp_path):
 def _run_cli(args):
     return subprocess.run([sys.executable, "-m", "biogassim.cli", *args],
                           capture_output=True, text=True, timeout=180,
+                          encoding="utf-8",
                           cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 

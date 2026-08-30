@@ -1,26 +1,30 @@
 """Propriedades específicas da água (líquido) para lavagem com água."""
 from __future__ import annotations
 
+import numpy as np
+
 from ..Core.constants import C_TO_K
+
+# constante do ajuste polinomial à tabulação de Kell (1975):
+# ρ(t) [kg/m³], t em °C, validade 0-100 °C (erro máximo ~0,012 kg/m³).
+# Coeficientes de t⁶ a t⁰ (np.polyfit de grau 6 sobre 17 pontos de referência).
+_RHO_COEF = (-5.572729e-12, 2.835295e-09, -6.068943e-07, 7.638281e-05,
+             -8.647072e-03, 6.501321e-02, 9.998431e+02)
+_T_CRIT_WATER = 647.096   # K
 
 
 def water_density(T: float) -> float:
-    """Densidade da água líquida (kg/m³) -- correlação de Watson."""
+    """Densidade da água líquida (kg/m³) -- ajuste à tabulação de Kell (1975).
+
+    Polinômio em t = T - 273,15 °C com máximo físico em ~4 °C:
+    ρ(0 °C) = 999,84; ρ(4 °C) = 999,97; ρ(25 °C) = 997,05;
+    ρ(40 °C) = 992,21; ρ(90 °C) = 965,31; ρ(100 °C) = 958,35 kg/m³.
+    """
     T = float(T)
-    # Watson base: rho = rho_c * (1 - Tr)^n; aqui usamos aproximação polinomial 0-100°C
-    Tc = 647.096
-    if T >= Tc:
-        return 322.0
-    rho = 1000.0 * (1.0 - 0.001 * (T - 277.15))  # aproximação suave perto de 4°C
-    # melhor ajuste: Kell eq.
-    a = 999.83952
-    b = 0.018224944
-    c = -7.92221e-6
-    d = 5.59448e-8
-    e = -1.0e-10
-    # em função de T (°C)
-    Tc_c = T - C_TO_K
-    rho = a + b * Tc_c + c * Tc_c**2 + d * Tc_c**3 + e * Tc_c**4
+    if T >= _T_CRIT_WATER:
+        return 322.0                      # densidade crítica
+    t = T - C_TO_K
+    rho = np.polyval(_RHO_COEF, t)
     return float(rho)
 
 
@@ -39,11 +43,16 @@ def water_cp(T: float) -> float:
 
 
 def water_surface_tension(T: float) -> float:
-    """Tensão superficial água/ar (N/m)."""
+    """Tensão superficial água/vapor (N/m) -- forma de Vargaftik (ex.: σ(25 °C) = 0,0720).
+
+    σ = B·(1 - Tr)^1.256 · [1 - 0.625(1 - Tr)], Tr = T/Tc, B = 235,8 mN/m.
+    """
     T = float(T)
-    if T >= 647.0:
+    Tr = T / _T_CRIT_WATER
+    if Tr >= 1.0:
         return 0.0
-    return float(0.2358 * (1.0 - (T - 273.15) / 370.0) ** 1.256)
+    one_m = 1.0 - Tr
+    return float(0.2358 * one_m ** 1.256 * (1.0 - 0.625 * one_m))
 
 
 __all__ = ["water_density", "water_viscosity", "water_cp", "water_surface_tension"]

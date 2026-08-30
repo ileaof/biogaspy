@@ -33,11 +33,15 @@ class PumpResult(UnitResult):
     work: float = 0.0
 
 
-def pump(stream: Stream, P_out: float, eta: float = 0.7) -> PumpResult:
-    """Bomba de líquido: W = V_dot ΔP / η."""
+def pump(stream: Stream, P_out: float, eta: float = 0.7,
+         rho: float | None = None) -> PumpResult:
+    """Bomba de líquido: W = V_dot ΔP / η.
+
+    ``rho``: densidade do líquido (kg/m³). Se None, usa 1000 kg/m³ (água) --
+    callers com solvente não-aquoso devem passar a densidade do solvente.
+    """
     mm = molar_weight([get_comp(s) for s in stream.species], stream.z)
-    rho = mm / (get_comp(stream.species[0]).MM / 1000.0)  # aproximado por MM médio -> densidade
-    rho = 1000.0  # líquido ~água (placeholder; solvente define rho)
+    rho = float(rho) if rho is not None else 1000.0
     Vdot = stream.flow * mm / rho
     work = Vdot * (P_out - stream.P) / eta
     out = Stream(list(stream.species), stream.flow, stream.z.copy(),

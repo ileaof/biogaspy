@@ -21,6 +21,7 @@ from ..Hydraulics import (
     column_diameter,
     flooding_velocity,
     get_packing,
+    is_gpdc_valid,
     operating_velocity,
     wet_pressure_drop,
 )
@@ -39,7 +40,7 @@ class AbsorberSpec:
     height: float | None = None        # m
     mode: str = "isothermal"              # "isothermal" | "adiabatic"
     T_op: float | None = None          # K (modo isotérmico); se None usa T do gás
-    pressure: float | None = None       # Pa (topo); perda de carga aplicada por estágio
+    pressure: float | None = None       # Pa (uniforme na coluna); ΔP calculado é apenas métrica
     max_iter: int = 120
     tol: float = 1.0e-7
     method: str = "newton"                # "newton" (global, robusto) | "ss" (substituição sucessiva)
@@ -71,6 +72,9 @@ class AbsorberResult(UnitResult):
     CO2_removal: float = 0.0
     purity_CH4: float = 0.0
     residual_CO2: float = 0.0
+    mass_balance_error: float = 0.0    # erro relativo máx. por componente (ε_mass)
+    gpdc_extrapolated: bool = False    # True = X fora da faixa do gráfico GPDC
+    flood_parameter_X: float = 0.0     # X = (L/G)_mass·√(ρg/ρl) usado no sizing
 
 
 class Absorber:
@@ -455,6 +459,10 @@ class Absorber:
         res.K_profile = K
         res.gas_out = gas_out
         res.liquid_out = liquid_out
+        # balanço de massa por componente (entrada = saída) em erro relativo
+        f_in = self.gas_in.flow * self.gas_in.z + self.solvent_in.flow * self.solvent_in.z
+        f_out = gas_out.flow * gas_out.z + liquid_out.flow * liquid_out.z
+        res.mass_balance_error = float(np.max(np.abs(f_in - f_out)) / max(f_in.sum(), 1e-12))
         self._compute_metrics(res)
         self._design_and_masstransfer(res, T, P, L, V, x, y, K)
         return res
@@ -506,13 +514,25 @@ class Absorber:
     def _design_and_masstransfer(self, res, T, P, L, V, x, y, K):
         s = self.spec
         packing = get_packing(s.packing)
-        # densidades e viscosidades (fase gás -- mistura CH4/CO2 aprox; líquido -- solvente)
-        rho_g = self.gas_in.P * np.mean([self._mm(c) for c in self.species]) / (8.314 * np.mean(T))
+        # massa molar do GÁS: média ponderada pelos fluxos de vapor por estágio
+        # (não pelo conjunto de espécies -- espécies líquidas como H2O/amina não
+        # estão na fase gás e enviesavam rho_g, u_flood e o diâmetro)
+        y_avg = y @ V / max(V.sum(), 1e-12)
+        y_sum = max(y_avg.sum(), 1e-12)
+        mm_gas = float(np.dot(y_avg / y_sum, [self._mm(c) for c in self.species]))
+        # densidades e viscosidades (fase gás ideal-gás; líquido -- solvente)
+        rho_g = (P[0] if np.ndim(P) else P) * mm_gas / (8.314462618 * float(np.mean(T)))
         rho_l = self.solvent.density(np.mean(T))
         mu_l = self.solvent.viscosity(np.mean(T))
         L_mass = L.mean() * self.solvent.molar_mass_liquid()
-        G_mass = V.mean() * np.mean([self._mm(c) for c in self.species])
+        G_mass = V.mean() * mm_gas
         L_over_G = L_mass / max(G_mass, 1e-9)
+        res.flood_parameter_X = float(L_over_G * np.sqrt(rho_g / max(rho_l, 1e-9)))
+        res.gpdc_extrapolated = not is_gpdc_valid(L_over_G, rho_g, rho_l)
+        if res.gpdc_extrapolated and not res.message:
+            res.message = (f"GPDC extrapolado (X={res.flood_parameter_X:.1f} > 2): "
+                           "coluna governada pela carga de líquido; diâmetro e ΔP "
+                           "NÃO confiáveis para projeto (ver auditoria/roadmap).")
         u_flood = flooding_velocity(rho_g, rho_l, mu_l, packing, L_over_G)
         u_op = operating_velocity(u_flood, 0.7)
         if s.diameter is None:

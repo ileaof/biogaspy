@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from ..Core.constants import R_J_MOL_K
+
 
 def methane_viscosity(T: float, P: float) -> float:
     """Viscosidade do CH4 gasoso (Pa·s) -- Joss-Stiel/Thodos aproximado.
@@ -20,12 +22,12 @@ def methane_solubility_water(T: float, P: float) -> float:
     """Constante de Henry do CH4 em água (mol/(L·atm)) -- usado para perdas.
 
     Valor ~1.4e-3 a 25°C (muito menor que CO2 -> seletividade).
+    Convenção de van't Hoff do pacote: dHsol > 0 = dissolução exotérmica
+    (T menor -> H menor -> mais solúvel), como em Thermodynamics.Henry.
     """
-    # van't Hoff: ln H = ln Href - dHsol/R (1/T - 1/Tref)
     Href = 1.4e-3      # mol/(L·atm) a 298 K
-    dH = -14000.0      # J/mol (solubilidade aumenta T-> baixa? mantém sinal de referência)
-    R = 8.314
-    H = Href * np.exp(-dH / R * (1.0 / T - 1.0 / 298.15))
+    dHsol = 14000.0    # J/mol (exotérmica, mesmo valor de HENRY_WATER["CH4"])
+    H = Href * np.exp(-dHsol / R_J_MOL_K * (1.0 / T - 1.0 / 298.15))
     return float(H)
 
 

@@ -24,21 +24,30 @@ def cp_ideal_mixture(components: Sequence[Component], z: Sequence[float], T: flo
 
 
 def wilke_viscosity(visc: Sequence[float], mm: Sequence[float], z: Sequence[float]) -> float:
-    """Viscosidade de mistura gasosa pela regra de Wilke (Pa·s)."""
+    """Viscosidade de mistura gasosa pela regra de Wilke (Pa·s).
+
+    Wilke (1950) / Reid-Prausnitz-Poling eq. 9-5.12:
+
+        φ_ij = [1 + (μ_i/μ_j)^(1/2)·(M_i/M_j)^(1/4)]² / √(8·(1 + M_i/M_j))
+        μ_mix = Σ_i [ x_i·μ_i / Σ_j x_j·φ_ij ]   (denominador somado em j para cada i)
+
+    Reduz-se a μ_i puro quando a composição é de um componente único (φ_ii = 1).
+    """
     visc = np.asarray(visc, dtype=float)
     mm = np.asarray(mm, dtype=float)
     z = np.asarray(z, dtype=float)
     z = z / z.sum()
     n = len(z)
-    num = 0.0
+    mu = 0.0
     for i in range(n):
-        denom = 0.0
+        denom_i = 0.0
         for j in range(n):
-            phi = (1.0 + (visc[i] / visc[j]) ** 0.5
-                   * (mm[j] / mm[i]) ** 0.25) ** 2
-            denom += z[j] * phi / np.sqrt(8.0 * (mm[i] + mm[j]))
-        num += z[i] * visc[i] / denom
-    return float(num * np.sqrt(8.0)) if n == 1 else float(num)
+            phi_ij = ((1.0 + (visc[i] / visc[j]) ** 0.5
+                       * (mm[i] / mm[j]) ** 0.25) ** 2
+                      / np.sqrt(8.0 * (1.0 + mm[i] / mm[j])))
+            denom_i += z[j] * phi_ij
+        mu += z[i] * visc[i] / denom_i
+    return float(mu)
 
 
 __all__ = ["molar_weight", "cp_ideal_mixture", "wilke_viscosity"]

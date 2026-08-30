@@ -50,6 +50,8 @@ def metrics_from_absorber(name: str, result, gas_in: Stream) -> dict:
         "flooding_pct": round(result.flooding_fraction * 100, 1),
         "converged": result.converged,
         "iterations": result.iterations,
+        "mass_balance_error": float(result.mass_balance_error),
+        "gpdc_extrapolated": bool(getattr(result, "gpdc_extrapolated", False)),
     }
 
 
