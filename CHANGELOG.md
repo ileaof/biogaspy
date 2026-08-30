@@ -6,6 +6,49 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+### Corrigido (auditoria de prontidão para produção — Fase 1, 2026-08-30)
+Auditoria completa em `BIOGASPY_PRODUCTION_READINESS_AUDIT.md` (classificação
+nível 2 — simulador de pesquisa; **NÃO pronto para produção**). Correções da
+Fase 1 do roadmap:
+
+- **Import circular `Thermodynamics` ↔ `Properties`**: importar
+  `biogassim.Thermodynamics` diretamente falhava com `ImportError`.
+  Imports movidos para dentro das funções em `GasProperties.py`; travado por
+  teste de regressão (`test_import_thermodynamics_first`).
+- **Densidade da água** (`Properties/Water.py`): polynomial de Bigg válido só
+  até 40 °C produzia ρ *crescente* com T (ρ(90 °C)=1001 kg/m³). Reajustado
+  polinômio de grau 6 à tabulação de Kell (1975), 0–100 °C
+  (ρ(25 °C)=997,05; ρ(90 °C)=965,5 kg/m³; erro máx. 0,012 kg/m³).
+- **Tensão superficial da água ~3× alto** (0,216 → 0,0720 N/m a 25 °C):
+  correlação de Vargaftik implementada corretamente.
+- **Regra de Wilke** (`Properties/Mixtures.py`): acumulação denominador errada
+  dava μ 6× baixo (90/10 CH₄/CO₂: 2,1e-6 → 1,13e-5 Pa·s). Implementação com
+  φ_ij por par e somatório por componente (Reid-Prausnitz-Poling 9-5.12).
+- **NRTL** (`Thermodynamics/ActivityModels.py`): índices τ/α transpostos;
+  reescrito conforme Renon-Prausnitz, travado por ponto binário calculado à
+  mão + consistência de Gibbs-Duhem diferencial.
+- **Sinal do ΔH de dissolução** em `Properties/Methane.py` (consistente com o
+  `HENRY_WATER` de van't Hoff).
+- **Bomba** (`Auxiliaries.pump`): parâmetro `rho` explícito (default água
+  1000 kg/m³); linha de ρ falsa removida.
+- **Dimensionamento de coluna**: massa molecular do gás ponderada pela
+  composição local (antes média aritmética não-ponderada das espécies).
+- **Rastreabilidade**: `AbsorberResult` agora reporta `mass_balance_error`
+  (precisão de máquina ~1e-15 em casos convergentes) e propaga para métricas/
+  comparação; `metrics_from_absorber` inclui o erro e a flag de extrapolação.
+- **Extrapolação do GPDC exposta** (não silenciada): water scrubbing com
+  (L/V) molar=100 opera em X=(L/G)√(ρg/ρl)≈23–33, fora do gráfico de Eckert
+  (X≲2). Física original mantida; adicionados `AbsorberResult.flood_parameter_X`,
+  `gpdc_extrapolated` (bool) e mensagem de alerta explícita, além de
+  `Hydraulics.is_gpdc_valid()`. Critério de capacidade líquida para essas
+  cargas é trabalho da Fase 3 do roadmap (diâmetro/ΔP nesses regimes NÃO são
+  confiáveis para projeto).
+- **CLI de comparação em Windows**: subprocessos dos testes agora decodificam
+  stdout como UTF-8 (codepage 1252 mojava o cabeçalho "COMPARAÇÃO").
+- Testes: 26 novos de regressão em `tests/test_phase1_regression.py`
+  (água/Kell, Wilke, NRTL, import circular, balanço de massa, GPDC, bomba).
+  Suíte completa: **274 passando**.
+
 ### Adicionado
 - **H₂S como primeira extensão do modelo binário CH₄–CO₂.** H₂S integrado
   ponta-a-ponta como componente de alimentação (CH₄ + CO₂ + H₂S = 100%),
