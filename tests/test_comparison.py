@@ -251,9 +251,13 @@ def test_case_without_comparison_loads_none(tmp_path):
 
 # --------------------------- CLI ------------------------------------------- #
 def _run_cli(args):
+    # stdout do CLI vira pipe -> o filho usa a codificação do locale (cp1252 no
+    # Windows e textos acentuados quebram o decode utf-8 abaixo); forcamos ambos
+    # os lados em UTF-8.
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
     return subprocess.run([sys.executable, "-m", "biogassim.cli", *args],
                           capture_output=True, text=True, timeout=180,
-                          encoding="utf-8",
+                          encoding="utf-8", env=env,
                           cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
