@@ -1,0 +1,16 @@
+{
+  "name": "thesis_mea",
+  "technology": "mea",
+  "feed": {
+    "CH4": 0.5592559255925593,
+    "CO2": 0.44074407440744073,
+    "flow_mols": 100.0
+  },
+  "operating": {
+    "P_bar": 2.0,
+    "L_over_V": 20.0,
+    "N_stages": 8,
+    "height_m": 12.0
+  },
+  "comparison": null
+}
