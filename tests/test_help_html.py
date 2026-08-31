@@ -11,6 +11,7 @@ Cobre:
 """
 from __future__ import annotations
 
+import importlib
 import os
 import pathlib
 import re
@@ -100,3 +101,16 @@ def test_cli_help_locates_or_builds():
     # HELP.html existe em docs/ após o comando
     help_path = pathlib.Path(__file__).resolve().parents[1] / "docs" / "HELP.html"
     assert help_path.exists()
+
+
+def test_markdown_is_declared_dependency():
+    """Regressão: usuários relataram precisar instalar 'markdown' manualmente
+    para a ajuda funcionar — o pacote deve estar declarado em requirements.txt
+    e no pyproject.toml."""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    reqs = (root / "requirements.txt").read_text(encoding="utf-8")
+    pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
+    assert re.search(r"^markdown>=", reqs, re.M | re.I)
+    assert '"markdown>=' in pyproject
+    # e o pacote realmente importa (gera o manual sem prerequisite extra)
+    importlib.import_module("markdown")

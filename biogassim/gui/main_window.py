@@ -644,18 +644,25 @@ class MainWindow(QtWidgets.QMainWindow):
     def _open_html_help(self):
         import pathlib
 
-        from ..Reporting.help_html import build_help_html
-
         root = pathlib.Path(__file__).resolve().parents[2]
         path = root / "docs" / "HELP.html"
         if not path.exists():
             try:
+                from ..Reporting.help_html import build_help_html
+
                 path = build_help_html(out=path)
-            except Exception:
+            except ImportError as e:
+                QtWidgets.QMessageBox.warning(
+                    self, "Ajuda",
+                    "O manual HTML precisa do pacote 'markdown' (pip install markdown).\n"
+                    f"Detalhe: {e}")
+                return
+            except Exception as e:
                 QtWidgets.QMessageBox.warning(
                     self, "Ajuda",
                     "Não foi possível gerar o manual HTML.\n"
-                    "Rode: python -m biogassim.Reporting.help_html")
+                    "Rode: python -m biogassim.Reporting.help_html\n"
+                    f"Detalhe: {e}")
                 return
         QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(path)))
 
