@@ -2,7 +2,8 @@ numpy>=1.24
 scipy>=1.10
 matplotlib>=3.5
 pandas>=2.0
-markdown>=3.4   # geração do manual HTML (GUI > Ajuda; biogassim.Reporting.help_html)
+# geração do manual HTML (GUI > Ajuda; biogassim.Reporting.help_html)
+markdown>=3.4
 # opcionais:
 # openpyxl>=3.0   # export Excel
 # pytest>=7.0     # testes
