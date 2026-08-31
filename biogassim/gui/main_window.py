@@ -1,85 +1,51 @@
-"""Janela principal da GUI do BioGasSim (composição CH4-CO2-H2S).
+"""Janela principal da GUI do BioGasSim (CH₄–CO₂–H₂S) — arquitetura moderna.
 
-Painéis:
-  * Composição da alimentação -- frações CH4/CO2/H2S editáveis (spin + slider +
-    presets), normalização automática (editar um componente redistribui o
-    restante entre os outros dois preservando a razão atual), validação e
-    leitura contínua das propriedades da mistura (MM, Z, densidade, LHV, HHV,
-    Índice de Wobbe, densidade relativa).
-  * Aviso de segurança -- H2S é tóxico/corosivo; banner exibido sempre que H2S
-    estiver presente na alimentação.
-  * Condições operacionais -- tecnologia, pressão, L/V, estágios, altura.
-  * Controles do solver + monitor de convergência.
-  * Dashboard de resultados (tabela de métricas, incluindo remoção de H2S e
-    concentração de H2S no gás tratado).
-  * Gráfico interativo (varredura de H2S: remoção/recuperação vs H2S%).
+Visão geral (modernização da GUI):
+  * **Modelo** (:mod:`biogassim.gui.state`)  -- AppState com sinais compartilhados
+    e estado visual (READY/RUNNING/CONVERGED/WARNING/FAILED/OUTDATED).
+  * **Projeto** (:mod:`biogassim.gui.project`)  -- novo/abrir/salvar/salvar como/
+    recentes reutilizando ``cases.Case`` (mesmo formato do ``case.json`` da CLI).
+  * **Workers** (:mod:`biogassim.gui.workers`)  -- toda simulação/estudo roda em
+    QThread; a GUI nunca bloqueia.
+  * **Abas** (:mod:`biogassim.gui.tabs`)  -- Projeto | Alimentação | Lavagem de
+    Gás | Resultados | Comparação | Desempenho & Economia | Estudos | Relatórios,
+    cada uma com QScrollArea **independente**.
 
-Toda a lógica de processo reusa ``biogassim.cases`` e
-``biogassim.Properties.mixture_properties_general``; a GUI é só a camada de
-interação.
+Toda a ciência continua no backend compartilhado com a CLI (``cases``/
+``comparison``/``Properties``) -- nada é duplicado nesta camada.
 """
 from __future__ import annotations
 
-from .. import cases, safety
-from ..Properties import mixture_properties_general
-from .qt import Qt, QtCore, QtGui, QtWidgets, Signal
+from .. import cases
+from .project import ProjectManager
+from .qt import QSettings, Qt, QtCore, QtGui, QtWidgets, Signal
+from .state import (
+    STATE_FAILED,
+    STATE_READY,
+    STATE_RUNNING,
+    AppState,
+    state_css,
+)
+from .tabs import (
+    FeedTab,
+    GasWashingTab,
+    ParametricTab,
+    PerformanceTab,
+    ProjectTab,
+    ReportsTab,
+    ResultsTab,
+    wrap_scroll,
+)
+from .workers import FunctionWorker
 
 # QAction mudou de QtWidgets (PyQt5) para QtGui (PySide6/PyQt6) -- portável:
 QAction = getattr(QtGui, "QAction", None) or QtWidgets.QAction  # noqa: B009
-# QDesktopServices: QtGui (PySide6/PyQt6) ou QtWidgets (PyQt5):
-QDesktopServices = getattr(QtGui, "QDesktopServices", None) or QtWidgets.QDesktopServices  # noqa: B009
+QActionGroup = getattr(QtGui, "QActionGroup", None)  # noqa: B009  (Qt6: QtGui)
+QDesktopServices = (getattr(QtGui, "QDesktopServices", None)
+                    or QtWidgets.QDesktopServices)  # noqa: B009
 
-# Canvas matplotlib (opcional -- degrada com elegância se indisponível)
-try:
-    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as _Canvas
-    from matplotlib.figure import Figure
-    _HAS_PLOT = True
-except Exception:  # pragma: no cover - depende do backend
-    _HAS_PLOT = False
-
-# Presets como (rótulo, {CH4, CO2, H2S}) -- frações molares.
-PRESETS = {
-    "Biogás (47 / 53 / 0)":            {"CH4": 0.47, "CO2": 0.53, "H2S": 0.00},
-    "Biogás c/ 1% H2S (46 / 53 / 1)":   {"CH4": 0.46, "CO2": 0.53, "H2S": 0.01},
-    "Biogás c/ 2% H2S (45 / 53 / 2)":   {"CH4": 0.45, "CO2": 0.53, "H2S": 0.02},
-    "Biogás c/ 5% H2S (40 / 55 / 5)":   {"CH4": 0.40, "CO2": 0.55, "H2S": 0.05},
-    "Digestor anaeróbio (60 / 40 / 0)": {"CH4": 0.60, "CO2": 0.40, "H2S": 0.00},
-    "Metano puro (100 / 0 / 0)":         {"CH4": 1.00, "CO2": 0.00, "H2S": 0.00},
-    "Personalizado": None,
-}
-
-_READOUTS = [
-    ("molar_mass_gmol", "Massa molar", "g/mol", "{:.3f}"),
-    ("Z", "Fator Z", "", "{:.4f}"),
-    ("density", "Densidade (T,P)", "kg/m³", "{:.3f}"),
-    ("density_normal", "Densidade normal", "kg/Nm³", "{:.4f}"),
-    ("LHV_MJ_per_Nm3", "PCI (LHV)", "MJ/Nm³", "{:.2f}"),
-    ("HHV_MJ_per_Nm3", "PCS (HHV)", "MJ/Nm³", "{:.2f}"),
-    ("wobbe_index_MJ_per_Nm3", "Índice de Wobbe", "MJ/Nm³", "{:.2f}"),
-    ("specific_gravity", "Densidade relativa", "(ar=1)", "{:.4f}"),
-]
-
-# Métricas mostradas na tabela de resultados (rótulo, chave, unidade).
-_RESULT_ROWS = [
-    ("Pureza CH₄", "purity_CH4", "%"),
-    ("Recuperação CH₄", "recovery_CH4", "%"),
-    ("Remoção CO₂", "CO2_removal", "%"),
-    ("Remoção H₂S", "H2S_removal", "%"),
-    ("H₂S no gás tratado", "treated_H2S_ppm", "ppm"),
-    ("Perda de metano", "methane_loss", "%"),
-    ("Vazão de solvente", "solvent_flow_mols", "mol/s"),
-    ("Consumo de água", "water_m3_per_h", "m³/h"),
-    ("Energia total", "total_kW", "kW"),
-    ("Consumo específico", "specific_kWh_per_Nm3", "kWh/Nm³"),
-    ("Diâmetro da coluna", "diameter_m", "m"),
-    ("Altura da coluna", "height_m", "m"),
-    ("Margem de inundação", "flooding_pct", "% flood"),
-    ("Wobbe (gás tratado)", "treated_wobbe_MJ_per_Nm3", "MJ/Nm³"),
-    ("Custo específico", "specific_cost_usd_per_Nm3", "USD/Nm³"),
-]
-
-_COMPS = ("CH4", "CO2", "H2S")
-_COMP_LABEL = {"CH4": "CH₄", "CO2": "CO₂", "H2S": "H₂S"}
+_SETTINGS_GEOMETRY = "gui/main_window/geometry"
+_SETTINGS_THEME = "gui/theme"
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -90,65 +56,592 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("BioGasSim -- Upgrading de biogás CH₄–CO₂–H₂S")
-        self._updating = False
-        self._comp = {"CH4": 0.47, "CO2": 0.53, "H2S": 0.0}
+        self.app = AppState()
+        self.project = ProjectManager()
+        self.sim_worker: FunctionWorker | None = None
+        self._closing = False
 
-        # ---- aba 1: Simulação (paineis existentes, inalterados) ----
-        sim_widget = QtWidgets.QWidget()
-        root = QtWidgets.QHBoxLayout(sim_widget)
+        self._build_tabs()
+        self._build_menu()
+        self._build_toolbar()
+        self._build_statusbar()
+        self._wire()
+        theme = QSettings().value(_SETTINGS_THEME, "light")
+        self._apply_theme(theme == "dark")
 
-        left = QtWidgets.QVBoxLayout()
-        left.addWidget(self._build_operating_group())   # antes: define P p/ leituras
-        left.addWidget(self._build_composition_group())
-        left.addWidget(self._build_safety_group())
-        left.addWidget(self._build_solver_group())
-        left.addStretch(1)
+        # condição inicial: popula leituras/propriedades/segurança
+        self.feed_tab.set_composition(dict(self.feed_tab._comp))
 
-        right = QtWidgets.QVBoxLayout()
-        right.addWidget(self._build_results_group(), 1)
-        right.addWidget(self._build_plot_group(), 1)
-
-        root.addLayout(left, 0)
-        root.addLayout(right, 1)
-
-        # barra de rolagem própria da aba Simulação -- conteúdo acessível com a
-        # janela reduzida (consistente com as sub-abas de comparação). Largura
-        # acompanha a janela (sem rolagem horizontal); rolagem vertical só entra
-        # quando o conteúdo não cabe.
-        sim_scroll = QtWidgets.QScrollArea()
-        sim_scroll.setWidgetResizable(True)
-        sim_scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
-        sim_scroll.setWidget(sim_widget)
-
-        # ---- container de abas: Simulação + Comparação de Métodos ----
+    # ================================================================== #
+    # Construção da interface
+    # ================================================================== #
+    def _build_tabs(self):
         self.tabs = QtWidgets.QTabWidget()
-        self.tabs.addTab(sim_scroll, "Simulação")
+        self.tabs.setDocumentMode(True)
+
+        # 1) Projeto
+        self.project_tab = ProjectTab(self.app, self.project, self)
+        self.tabs.addTab(wrap_scroll(self.project_tab), "Projeto")
+
+        # 2) Alimentação & Condições
+        self.feed_tab = FeedTab(self.app, self)
+        self.tabs.addTab(wrap_scroll(self.feed_tab), "Alimentação & Condições")
+
+        # 3) Lavagem de gás
+        self.gas_tab = GasWashingTab(self.app, self)
+        self.tabs.addTab(wrap_scroll(self.gas_tab), "Lavagem de Gás")
+
+        # 4) Resultados do processo
+        self.results_tab = ResultsTab(self.app, self)
+        self.tabs.addTab(wrap_scroll(self.results_tab), "Resultados do Processo")
+
+        # 5) Comparação de métodos (preservada -- já completa)
         from .comparison_tab import ComparisonTab
-        self.comp_tab = ComparisonTab(self)   # herda o feed desta janela
-        self.tabs.addTab(self.comp_tab, "Comparação de Métodos")
+        self.comp_tab = ComparisonTab(self)
+        self.tabs.addTab(self.comp_tab, "Comparação de Processos")
+
+        # 6) Desempenho & Economia
+        self.perf_tab = PerformanceTab(self.app)
+        self.tabs.addTab(wrap_scroll(self.perf_tab), "Desempenho & Economia")
+
+        # 7) Estudos paramétricos
+        self.study_tab = ParametricTab(self.app, self)
+        self.tabs.addTab(wrap_scroll(self.study_tab), "Estudos Paramétricos")
+
+        # 8) Relatórios
+        self.reports_tab = ReportsTab(self.app, self)
+        self.tabs.addTab(wrap_scroll(self.reports_tab), "Relatórios")
+
         self.setCentralWidget(self.tabs)
 
-        self._build_menu()                              # barra de menu (Ajuda → Sobre)
-
-        self._set_composition(dict(self._comp))         # popula leituras iniciais
-
     # ------------------------------------------------------------------ #
-    # Menu / Sobre
+    # Menu
     # ------------------------------------------------------------------ #
     def _build_menu(self):
-        """Barra de menu com Ajuda → Manual (HTML) / Sobre o BioGasPy."""
-        menubar = self.menuBar()
-        help_menu = menubar.addMenu("&Ajuda")
-        act_help = QAction("&Manual de Ajuda (HTML)…", self)
-        act_help.triggered.connect(self._open_html_help)
-        help_menu.addAction(act_help)
-        help_menu.addSeparator()
-        act = QAction("&Sobre o BioGasPy…", self)
-        act.triggered.connect(self._show_about)
-        help_menu.addAction(act)
+        mb = self.menuBar()
+
+        # --- Arquivo --------------------------------------------------- #
+        m_file = self.m_file = mb.addMenu("&Arquivo")
+        self._add(m_file, "&Novo projeto…", self.project_new, "Ctrl+N")
+        self._add(m_file, "&Abrir…", self.project_open, "Ctrl+O")
+        self._add(m_file, "&Salvar", self.project_save, "Ctrl+S")
+        self._add(m_file, "Salvar &como…", self.project_save_as, "Ctrl+Shift+S")
+        self.recent_menu = m_file.addMenu("Arquivos &recentes")
+        self._rebuild_recents()
+        m_file.addSeparator()
+        self._add(m_file, "Sai&r", self.close, "Ctrl+Q")
+
+        # --- Simulação ------------------------------------------------- #
+        m_sim = self.m_sim = mb.addMenu("&Simulação")
+        self._add(m_sim, "&Executar caso", self._on_run, "F5")
+        m_sim.addSeparator()
+        self._add(m_sim, "Varredura de &H₂S (água)", self._on_run_h2s_study)
+        self._add(m_sim, "Estudo &paramétrico…", self._go_to_studies)
+
+        # --- Ferramentas ----------------------------------------------- #
+        m_tools = self.m_tools = mb.addMenu("&Ferramentas")
+        self._add(m_tools, "&Relatórios / exportar…", self._go_to_reports)
+        self._add(m_tools, "&Comparação de métodos", self._go_to_comparison)
+        m_tools.addSeparator()
+        self._add(m_tools, "&Limpar resultados", self._clear_results)
+
+        # --- Exibir ---------------------------------------------------- #
+        m_view = self.m_view = mb.addMenu("&Exibir")
+        for idx, label in enumerate(("Projeto", "Alimentação & Condições",
+                                     "Lavagem de Gás", "Resultados do Processo",
+                                     "Comparação de Processos",
+                                     "Desempenho & Economia",
+                                     "Estudos Paramétricos", "Relatórios")):
+            act = QAction(label, self)
+            act.triggered.connect(lambda _c=False, i=idx: self.tabs.setCurrentIndex(i))
+            m_view.addAction(act)
+        m_view.addSeparator()
+        self.theme_light = QAction("Tema &claro", self, checkable=True)
+        self.theme_dark = QAction("Tema &escuro", self, checkable=True)
+        self.theme_group = QActionGroup(self) if QActionGroup is not None else None
+        if self.theme_group is not None:
+            self.theme_group.addAction(self.theme_light)
+            self.theme_group.addAction(self.theme_dark)
+        self.theme_light.triggered.connect(lambda: self._apply_theme(False))
+        self.theme_dark.triggered.connect(lambda: self._apply_theme(True))
+        m_view.addAction(self.theme_light)
+        m_view.addAction(self.theme_dark)
+
+        # --- Ajuda ----------------------------------------------------- #
+        m_help = self.m_help = mb.addMenu("&Ajuda")
+        self._add(m_help, "&Manual de Ajuda (HTML)…", self._open_html_help)
+        m_help.addSeparator()
+        self._add(m_help, "&Sobre o BioGasPy…", self._show_about)
+
+    def _menu_refs(self):
+        """Referências diretas aos menus (evita QAction.menu(), que pode
+        devolver wrapper inválido em alguns ambientes de teste)."""
+        return [self.m_file, self.m_sim, self.m_tools, self.m_view, self.m_help]
+
+    def _menu_titles(self):
+        return [m.title() for m in self._menu_refs()]
+
+    @staticmethod
+    def _add(menu, text, slot, shortcut=None):
+        act = QAction(text, menu)
+        if shortcut:
+            act.setShortcut(shortcut)
+        act.triggered.connect(slot)
+        menu.addAction(act)
+        return act
+
+    # ------------------------------------------------------------------ #
+    # Barra de ferramentas
+    # ------------------------------------------------------------------ #
+    def _build_toolbar(self):
+        tb = self.addToolBar("Principal")
+        tb.setObjectName("main_toolbar")
+        tb.setMovable(False)
+        tb.setIconSize(QtCore.QSize(20, 20))
+        act_new = QAction("🆕", self)
+        act_new.setToolTip("Novo projeto (Ctrl+N)")
+        act_new.triggered.connect(self.project_new)
+        act_open = QAction("📂", self)
+        act_open.setToolTip("Abrir projeto (Ctrl+O)")
+        act_open.triggered.connect(self.project_open)
+        act_save = QAction("💾", self)
+        act_save.setToolTip("Salvar projeto (Ctrl+S)")
+        act_save.triggered.connect(self.project_save)
+        self.act_run = QAction("▶ Executar", self)
+        self.act_run.setToolTip("Executar caso (F5)")
+        self.act_run.triggered.connect(self._on_run)
+        self.act_stop = QAction("■ Parar", self)
+        self.act_stop.setEnabled(False)
+        self.act_stop.setToolTip("Parar estudo/comparação (roda em background)")
+        self.act_stop.triggered.connect(self._on_stop_requested)
+        act_rep = QAction("📄", self)
+        act_rep.setToolTip("Relatórios / exportação")
+        act_rep.triggered.connect(self._go_to_reports)
+        for a in (act_new, act_open, act_save):
+            tb.addAction(a)
+        tb.addSeparator()
+        for a in (self.act_run, self.act_stop):
+            tb.addAction(a)
+        tb.addSeparator()
+        tb.addAction(act_rep)
+
+    # ------------------------------------------------------------------ #
+    # Barra de status
+    # ------------------------------------------------------------------ #
+    def _build_statusbar(self):
+        sb = self.statusBar()
+        self.state_chip = QtWidgets.QLabel("Pronto")
+        self.state_chip.setStyleSheet(state_css(STATE_READY))
+        self.state_chip.setFixedWidth(140)
+        self.state_chip.setAlignment(Qt.AlignCenter)
+        sb.addWidget(self.state_chip)
+        self.context_lbl = QtWidgets.QLabel("")
+        sb.addWidget(self.context_lbl, 1)
+        binding = (QtWidgets.QApplication.instance()
+                   and QtWidgets.QApplication.instance().__class__.__module__)
+        self.qt_lbl = QtWidgets.QLabel(f"Qt: {binding or '?'}")
+        sb.addPermanentWidget(self.qt_lbl)
+
+    def _wire(self):
+        """Fiação central de sinais (modelo -> visões)."""
+        self.app.sim_state_changed.connect(self._on_state_changed)
+        self.app.metrics_ready.connect(self._on_metrics)
+        self.app.solver_log.connect(lambda line: None)  # (results_tab já escuta)
+        self.project.project_changed.connect(self._on_project_changed)
+        self.app.error.connect(self._show_error)
+
+        # feed_changed: marca obsoleto (backend state) + projeto sujo
+        self.feed_changed.connect(self._on_feed_changed_ui)
+        self.comp_tab.comparison_finished.connect(self.app.set_comparison)
+
+    def _show_error(self, msg: str):
+        QtWidgets.QMessageBox.warning(self, "BioGasSim", msg)
+
+        self._refresh_title(self.project.path, self.project.dirty)
+
+    # ================================================================== #
+    # Estado da alimentação (facades de compatibilidade c/ as abas)
+    # ================================================================== #
+    @property
+    def _comp(self) -> dict:
+        return self.feed_tab._comp
+
+    @property
+    def spins(self) -> dict:
+        return self.feed_tab.spins
+
+    @property
+    def sliders(self) -> dict:
+        return self.feed_tab.sliders
+
+    @property
+    def _readout_labels(self) -> dict:
+        return self.feed_tab.readout_labels
+
+    @property
+    def safety_lbl(self) -> QtWidgets.QLabel:
+        return self.gas_tab.safety_lbl
+
+    @property
+    def table(self) -> QtWidgets.QTableWidget:
+        return self.results_tab.table
+
+    @property
+    def status(self) -> QtWidgets.QLabel:
+        return self.results_tab.message_lbl
+
+    # ------------------------------------------------------------------ #
+    def feed_comp(self) -> dict:
+        return dict(self.feed_tab._comp)
+
+    def feed_conditions(self) -> dict:
+        """Estado de alimentação herdado pelas outras abas (fonte única)."""
+        return {
+            "comp": self.feed_comp(),
+            "flow": self.feed_tab.flow_spin.value(),
+            "P_bar": self.gas_tab.p_spin.value(),
+            "T_K": 298.15,                      # feed a 25 °C (modelo isotérmico)
+            "tech": self.gas_tab.tech.currentText(),
+            "thermodynamic_model": "Peng-Robinson",
+        }
+
+    def _current_case(self) -> cases.Case:
+        feed = {s: v for s, v in self.feed_comp().items() if v > 1e-9}
+        if not feed:
+            feed = {"CH4": 1.0}
+        feed["flow_mols"] = self.feed_tab.flow_spin.value()
+        return cases.Case(
+            name=self.project.display_name() or "gui",
+            technology=self.gas_tab.tech.currentText(),
+            feed=feed,
+            operating={"P_bar": self.gas_tab.p_spin.value(),
+                       "L_over_V": self.gas_tab.lv_spin.value(),
+                       "N_stages": int(self.gas_tab.n_spin.value()),
+                       "height_m": self.gas_tab.h_spin.value()},
+        )
+
+    # -- handlers de edição --------------------------------------------- #
+    def _set_composition(self, comp: dict):
+        self.feed_tab.set_composition(comp)
+
+    def _set_component(self, name: str, frac: float):
+        self.feed_tab._set_component(name, frac)
+
+    def _on_preset(self, name: str):
+        self.feed_tab._on_preset(name)
+
+    def on_operating_changed(self):
+        """Qualquer parâmetro operacional mudou: marca feed alterado."""
+        self.feed_changed.emit()
+
+    def _on_tech_changed(self, tech: str):
+        # aplica condições operacionais padrão da tecnologia
+        op = cases.DEFAULT_OPERATING.get(str(tech).lower())
+        if op:
+            self.gas_tab.p_spin.blockSignals(True)
+            self.gas_tab.lv_spin.blockSignals(True)
+            self.gas_tab.n_spin.blockSignals(True)
+            self.gas_tab.h_spin.blockSignals(True)
+            try:
+                self.gas_tab.p_spin.setValue(op["P_bar"])
+                self.gas_tab.lv_spin.setValue(op["L_over_V"])
+                self.gas_tab.n_spin.setValue(op["N_stages"])
+                self.gas_tab.h_spin.setValue(op["height_m"])
+            finally:
+                for sp in (self.gas_tab.p_spin, self.gas_tab.lv_spin,
+                           self.gas_tab.n_spin, self.gas_tab.h_spin):
+                    sp.blockSignals(False)
+        self.feed_changed.emit()
+
+    def refresh_safety(self):
+        self.gas_tab.update_safety(self.app.metrics)
+
+    def _refresh_safety(self):
+        self.refresh_safety()
+
+    def _on_feed_changed_ui(self):
+        # estado de resultados obsoletos
+        self.app.mark_stale()
+        self.project.mark_dirty()
+        self.refresh_safety()
+        if self.app.metrics is not None:
+            # redesenha a tabela como obsoleta (itálico/cinza)
+            self.results_tab.fill(self.app.metrics, stale=True)
+        self.results_tab.mark_stale_banner(self.app.stale)
+        self.app.log("Condições de alimentação alteradas.")
+
+    # ================================================================== #
+    # Simulação (thread separada -- GUI nunca bloqueia)
+    # ================================================================== #
+    def _on_state(self, state):
+        pass  # (o chip é atualizado via _on_state_changed)
+
+    def _on_state_changed(self, state: str):
+        self.state_chip.setText(state)
+        self.state_chip.setStyleSheet(state_css(state))
+
+    def _on_run(self):
+        """Executa o caso corrente em background (worker QThread)."""
+        if self.sim_worker is not None and self.sim_worker.isRunning():
+            return
+        case = self._current_case()
+        self.app.set_state(STATE_RUNNING)
+        self.results_tab.show_message(
+            f"Executando {case.technology} | {case.feed.get('flow_mols')} mol/s | "
+            f"{case.operating.get('P_bar')} bar…")
+        self.app.log(f">>> Executando caso: tech={case.technology} "
+                     f"feed={ {k: v for k, v in case.feed.items() if k != 'flow_mols'} } "
+                     f"op={case.operating}")
+        self.act_run.setEnabled(False)
+        self.sim_worker = FunctionWorker(lambda: cases.run_case(case))
+        self.sim_worker.ok.connect(self._on_run_ok)
+        self.sim_worker.err.connect(self._on_run_err)
+        self.sim_worker.start()
+
+    def run_case_blocking(self) -> dict | None:
+        """Executa o caso e espera (para testes; a GUI usa ``_on_run``).
+
+        Bombeia eventos: os sinais ``ok``/``err`` do worker são enfileirados
+        (emitidos fora da GUI thread) e só chegam aos slots com um event loop."""
+        self._on_run()
+        w = self.sim_worker
+        if w is not None:
+            app = QtWidgets.QApplication.instance()
+            while w.isRunning():
+                app.processEvents(QtCore.QEventLoop.AllEvents, 50)
+            app.processEvents(QtCore.QEventLoop.AllEvents, 50)
+        return self.app.metrics
+
+    def run_sweep_blocking(self) -> list[dict]:
+        """Varredura H₂S síncrona (compat/testes; GUI usa a aba de estudos)."""
+        case = self._current_case()
+        comp = self.feed_comp()
+        r = comp["CH4"] / max(comp["CH4"] + comp["CO2"], 1e-9)
+        return cases.sweep_h2s("water", cases.frange(0.0, 0.05, 0.005),
+                               ch4_co2_ratio=r, operating=case.operating,
+                               flow=self.feed_tab.flow_spin.value())
+
+    def _on_run_ok(self, payload):
+        out = payload if isinstance(payload, dict) and "metrics" in payload \
+            else {"metrics": payload, "result": None}
+        metrics = out["metrics"]
+        result = out.get("result")
+        self.app.set_metrics(metrics, result)
+        it = metrics.get("iterations", "-")
+        pur = metrics.get("purity_CH4")
+        rec = metrics.get("recovery_CH4")
+        self.results_tab.show_message(
+            f"Convergiu: {metrics.get('converged')} | iterações: {it} | "
+            f"pureza {pur}% | recuperação {rec}%")
+        self.app.log(f"<<< Concluído: convergiu={metrics.get('converged')} "
+                     f"iterações={it} pur={pur} rec={rec}")
+        self.refresh_safety()
+        self.tabs.setCurrentWidget(self.results_tab)
+
+    def _on_run_err(self, msg: str):
+        self.app.set_state(STATE_FAILED)
+        self.results_tab.show_message(f"Falhou: {msg}")
+        self.app.log(f"!!! Erro: {msg}")
+        if self.sim_worker is not None and self.sim_worker.trace_text:
+            self.app.log(self.sim_worker.trace_text.splitlines()[-1][:300])
+        self.act_run.setEnabled(True)
+
+    def _on_metrics(self, _metrics):
+        self.act_run.setEnabled(True)
+        if self.app.metrics is not None:
+            self.results_tab.fill(self.app.metrics, stale=False)
+            self.results_tab.mark_stale_banner(False)
+
+    def _on_stop_requested(self):
+        """Interrompe os workers canceláveis (estudos/comparação)."""
+        stopped = False
+        if self.study_tab.worker is not None and self.study_tab.worker.isRunning():
+            self.study_tab.worker.stop()
+            stopped = True
+        if self.comp_tab.worker is not None and self.comp_tab.worker.isRunning():
+            self.comp_tab.worker.stop()
+            stopped = True
+        if stopped:
+            self.results_tab.show_message("Interrompendo cálculo em background…")
+
+    # ================================================================== #
+    # Ações de projeto
+    # ================================================================== #
+    def _maybe_save(self) -> bool:
+        """Confirma mudanças não salvas. True se pode continuar."""
+        if not self.project.dirty:
+            return True
+        ret = QtWidgets.QMessageBox.question(
+            self, "Projeto não salvo",
+            "O projeto tem alterações não salvas. Salvar agora?",
+            QtWidgets.QMessageBox.Save | QtWidgets.QMessageBox.Discard
+            | QtWidgets.QMessageBox.Cancel)
+        if ret == QtWidgets.QMessageBox.Save:
+            return self.project_save()
+        return ret == QtWidgets.QMessageBox.Discard
+
+    def _sync_case_from_gui(self) -> cases.Case:
+        case = self._current_case()
+        case.comparison = self.comp_tab.config.to_dict()
+        return case
+
+    def _apply_case_to_gui(self, case: cases.Case):
+        comp = {s: case.feed.get(s, 0.0) for s in ("CH4", "CO2", "H2S")}
+        self.feed_tab.set_composition(comp)
+        self.feed_tab.flow_spin.setValue(float(case.feed.get("flow_mols", 100.0)))
+        idx = self.gas_tab.tech.findText(case.technology)
+        if idx >= 0:
+            self.gas_tab.tech.setCurrentIndex(idx)
+        op = case.operating or {}
+        self.gas_tab.p_spin.setValue(float(op.get("P_bar", self.gas_tab.p_spin.value())))
+        self.gas_tab.lv_spin.setValue(float(op.get("L_over_V", self.gas_tab.lv_spin.value())))
+        self.gas_tab.n_spin.setValue(int(op.get("N_stages", self.gas_tab.n_spin.value())))
+        self.gas_tab.h_spin.setValue(float(op.get("height_m", self.gas_tab.h_spin.value())))
+        if case.comparison:
+            from .comparison_tab import ComparisonConfig
+            self.comp_tab.config = ComparisonConfig.from_dict(dict(case.comparison))
+
+    def project_new(self):
+        if not self._maybe_save():
+            return
+        self.project.mark_clean("")
+        self.app.metrics = None
+        self.app.result = None
+        self.results_tab.fill({})
+        self.results_tab.show_message("Novo projeto: configure o caso e execute.")
+        self.project_tab._refresh("", False)
+
+    def project_open(self, path: str | None = None):
+        if path is None:
+            path, _ = QtWidgets.QFileDialog.getOpenFileName(
+                self, "Abrir projeto (case.json)", "", "Projeto BioGasPy (*.json)")
+            if not path:
+                return
+        try:
+            case = self.project.load(path)
+        except Exception as exc:
+            from .workers import friendly_error
+            QtWidgets.QMessageBox.warning(self, "Abrir projeto",
+                                          f"Não foi possível abrir o projeto:\n"
+                                          f"{friendly_error(exc)}")
+            return
+        self._apply_case_to_gui(case)
+        self.project_tab._refresh(self.project.path, False)
+
+    def project_save(self) -> bool:
+        if not self.project.has_file:
+            return self.project_save_as()
+        try:
+            self.project.save(self._sync_case_from_gui())
+        except Exception as exc:
+            from .workers import friendly_error
+            QtWidgets.QMessageBox.warning(self, "Salvar projeto", friendly_error(exc))
+            return False
+        self.app.log(f"Projeto salvo: {self.project.path}")
+        return True
+
+    def project_save_as(self) -> bool:
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Salvar projeto como", "case.json", "Projeto BioGasPy (*.json)")
+        if not path:
+            return False
+        try:
+            self.project.save_as(self._sync_case_from_gui(), path)
+        except Exception as exc:
+            from .workers import friendly_error
+            QtWidgets.QMessageBox.warning(self, "Salvar projeto", friendly_error(exc))
+            return False
+        self.app.log(f"Projeto salvo: {self.project.path}")
+        return True
+
+    def _rebuild_recents(self):
+        self.recent_menu.clear()
+        recs = self.project.recents()
+        if not recs:
+            act = self.recent_menu.addAction("(nenhum)")
+            act.setEnabled(False)
+            return
+        for p in recs:
+            act = self.recent_menu.addAction(p)
+            act.triggered.connect(lambda _c=False, path=p: self.project_open(path))
+
+    def _refresh_title(self):
+        star = "*" if self.project.dirty else ""
+        self.setWindowTitle(
+            f"BioGasSim — {self.project.display_name()}{star} — "
+            f"Upgrading de biogás CH₄–CO₂–H₂S")
+
+    def _on_project_changed(self, path, dirty):
+        self._rebuild_recents()
+        self._refresh_title()
+
+    # ================================================================== #
+    # Navegação / utilidades
+    # ================================================================== #
+    def _go_to_results(self):
+        self.tabs.setCurrentWidget(self.results_tab)
+
+    def _go_to_studies(self):
+        self.tabs.setCurrentWidget(self.study_tab)
+
+    def _go_to_comparison(self):
+        self.tabs.setCurrentWidget(self.comp_tab)
+
+    def _go_to_reports(self):
+        self.tabs.setCurrentWidget(self.reports_tab)
+
+    def _on_run_h2s_study(self):
+        self._go_to_studies()
+        self.study_tab.run()
+
+    def _clear_results(self):
+        self.app.metrics = None
+        self.app.result = None
+        self.results_tab.fill({})
+        self.results_tab.show_message("Resultados limpos.")
+        self.app.set_state(STATE_READY)
+
+    def _apply_theme(self, dark: bool):
+        app = QtWidgets.QApplication.instance()
+        if app is None:
+            return
+        app.setStyle("Fusion")
+        if dark:
+            pal = QtGui.QPalette()
+            pal.setColor(QtGui.QPalette.Window, QtGui.QColor(53, 53, 53))
+            pal.setColor(QtGui.QPalette.WindowText, Qt.white)
+            pal.setColor(QtGui.QPalette.Base, QtGui.QColor(25, 25, 25))
+            pal.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor(53, 53, 53))
+            pal.setColor(QtGui.QPalette.Text, Qt.white)
+            pal.setColor(QtGui.QPalette.Button, QtGui.QColor(53, 53, 53))
+            pal.setColor(QtGui.QPalette.ButtonText, Qt.white)
+            pal.setColor(QtGui.QPalette.ToolTipBase, Qt.black)
+            pal.setColor(QtGui.QPalette.ToolTipText, Qt.white)
+            pal.setColor(QtGui.QPalette.Highlight, QtGui.QColor(42, 130, 218))
+            pal.setColor(QtGui.QPalette.HighlightedText, Qt.black)
+            pal.setColor(QtGui.QPalette.Disabled, QtGui.QPalette.Text,
+                         QtGui.QColor(127, 127, 127))
+            app.setPalette(pal)
+        else:
+            app.setPalette(app.style().standardPalette())
+        QSettings().setValue(_SETTINGS_THEME, "dark" if dark else "light")
+        self.theme_light.setChecked(not dark)
+        self.theme_dark.setChecked(dark)
+
+    def _show_about(self):
+        """Caixa 'Sobre' com a autoria/afiliação do projeto (sem inventar dados)."""
+        QtWidgets.QMessageBox.about(
+            self, "Sobre o BioGasPy",
+            "<p><b>BioGasPy — Thermodynamic Gas Upgrading Simulator</b></p>"
+            "<p>Prof. Dr. Ivaldo Leão Ferreira<br>"
+            "Federal University of Pará — UFPA<br>"
+            "Faculty of Mechanical Engineering</p>"
+            "<p>FEM-ITEC-UFPA 2026</p>")
+
+    def open_html_help(self):
+        self._open_html_help()
 
     def _open_html_help(self):
-        """Abre docs/HELP.html no navegador padrão; gera-o sob demanda se ausente."""
         import pathlib
 
         from ..Reporting.help_html import build_help_html
@@ -166,359 +659,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 return
         QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(path)))
 
-    def _show_about(self):
-        """Caixa 'Sobre' com a autoria/afiliação do projeto."""
-        QtWidgets.QMessageBox.about(
-            self, "Sobre o BioGasPy",
-            "<p><b>BioGasPy — Thermodynamic Gas Upgrading Simulator</b></p>"
-            "<p>Prof. Dr. Ivaldo Leão Ferreira<br>"
-            "Federal University of Pará — UFPA<br>"
-            "Faculty of Mechanical Engineering</p>"
-            "<p>FEM-ITEC-UFPA 2026</p>")
-
     # ------------------------------------------------------------------ #
-    # Painéis
+    # Fechamento: geometria + alterações não salvas
     # ------------------------------------------------------------------ #
-    def _build_composition_group(self) -> QtWidgets.QGroupBox:
-        box = QtWidgets.QGroupBox("Composição da alimentação (CH₄ / CO₂ / H₂S)")
-        lay = QtWidgets.QGridLayout(box)
-
-        self.preset = QtWidgets.QComboBox()
-        self.preset.addItems(list(PRESETS))
-        self.preset.currentTextChanged.connect(self._on_preset)
-        lay.addWidget(QtWidgets.QLabel("Preset"), 0, 0)
-        lay.addWidget(self.preset, 0, 1, 1, 2)
-
-        self.spins: dict[str, QtWidgets.QDoubleSpinBox] = {}
-        self.sliders: dict[str, QtWidgets.QSlider] = {}
-        row = 1
-        for s in _COMPS:
-            sp = self._pct_spin()
-            sl = self._pct_slider()
-            # captura s via default arg para evitar late-binding
-            sp.valueChanged.connect(lambda v, name=s: self._set_component(name, v / 100.0))
-            sl.valueChanged.connect(lambda v, name=s: self._set_component(name, v / 1000.0))
-            self.spins[s] = sp
-            self.sliders[s] = sl
-            lay.addWidget(QtWidgets.QLabel(f"{_COMP_LABEL[s]} (%)"), row, 0)
-            lay.addWidget(sp, row, 1)
-            lay.addWidget(sl, row, 2)
-            row += 1
-
-        lay.addWidget(QtWidgets.QLabel("Total"), row, 0)
-        self.total_lbl = QtWidgets.QLabel("100.0 %")
-        self.total_lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        lay.addWidget(self.total_lbl, row, 1, 1, 2)
-
-        # leituras de propriedades
-        self._readout_labels = {}
-        props = QtWidgets.QGroupBox("Propriedades da mistura")
-        form = QtWidgets.QFormLayout(props)
-        for key, label, unit, _fmt in _READOUTS:
-            val = QtWidgets.QLabel("-")
-            val.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            self._readout_labels[key] = val
-            form.addRow(f"{label} [{unit}]" if unit else label, val)
-        lay.addWidget(props, row + 1, 0, 1, 3)
-        return box
-
-    def _build_safety_group(self) -> QtWidgets.QGroupBox:
-        box = QtWidgets.QGroupBox("Segurança -- H₂S")
-        lay = QtWidgets.QVBoxLayout(box)
-        self.safety_lbl = QtWidgets.QLabel("Sem H₂S na alimentação.")
-        self.safety_lbl.setWordWrap(True)
-        self.safety_lbl.setStyleSheet("color: #444;")
-        lay.addWidget(self.safety_lbl)
-        lay.addWidget(QtWidgets.QLabel("Limite máx. H₂S no gás tratado (ppm):"))
-        self.maxh2s_spin = self._num_spin(0.0, 1000.0, safety.max_h2s_treated_ppm(), 1)
-        self.maxh2s_spin.valueChanged.connect(self._refresh_safety)
-        lay.addWidget(self.maxh2s_spin)
-        return box
-
-    def _build_operating_group(self) -> QtWidgets.QGroupBox:
-        box = QtWidgets.QGroupBox("Condições operacionais")
-        form = QtWidgets.QFormLayout(box)
-        self.tech = QtWidgets.QComboBox()
-        self.tech.addItems(list(cases.TECHNOLOGIES))
-        self.tech.currentTextChanged.connect(self._on_tech_changed)
-        self.flow_spin = self._num_spin(1.0, 1e5, 100.0, 1)
-        self.p_spin = self._num_spin(0.5, 120.0, 20.0, 1)
-        self.p_spin.valueChanged.connect(lambda _v: self._refresh_props())
-        self.lv_spin = self._num_spin(1.0, 1000.0, 100.0, 1)
-        self.n_spin = self._num_spin(1, 60, 12, 0)
-        self.h_spin = self._num_spin(1.0, 60.0, 15.0, 1)
-        # qualquer mudança operacional notifica a aba de comparação (feed alterado)
-        for sp in (self.flow_spin, self.p_spin, self.lv_spin, self.n_spin, self.h_spin):
-            sp.valueChanged.connect(lambda _v: self.feed_changed.emit())
-        form.addRow("Tecnologia", self.tech)
-        form.addRow("Vazão do biogás [mol/s]", self.flow_spin)
-        form.addRow("Pressão [bar]", self.p_spin)
-        form.addRow("Razão L/V", self.lv_spin)
-        form.addRow("Nº de estágios", self.n_spin)
-        form.addRow("Altura [m]", self.h_spin)
-        return box
-
-    def _build_solver_group(self) -> QtWidgets.QGroupBox:
-        box = QtWidgets.QGroupBox("Solver")
-        lay = QtWidgets.QVBoxLayout(box)
-        btns = QtWidgets.QHBoxLayout()
-        self.run_btn = QtWidgets.QPushButton("Executar caso")
-        self.run_btn.clicked.connect(self._on_run)
-        self.sweep_btn = QtWidgets.QPushButton("Varrer H₂S")
-        self.sweep_btn.clicked.connect(self._on_sweep)
-        btns.addWidget(self.run_btn)
-        btns.addWidget(self.sweep_btn)
-        lay.addLayout(btns)
-        self.status = QtWidgets.QLabel("Pronto.")
-        self.status.setWordWrap(True)
-        lay.addWidget(self.status)
-        return box
-
-    def _build_results_group(self) -> QtWidgets.QGroupBox:
-        box = QtWidgets.QGroupBox("Resultados")
-        lay = QtWidgets.QVBoxLayout(box)
-        self.table = QtWidgets.QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Métrica", "Valor", "Unidade"])
-        self.table.horizontalHeader().setStretchLastSection(True)
-        lay.addWidget(self.table)
-        return box
-
-    def _build_plot_group(self) -> QtWidgets.QGroupBox:
-        box = QtWidgets.QGroupBox("Mapa de desempenho (varredura de H₂S)")
-        lay = QtWidgets.QVBoxLayout(box)
-        if _HAS_PLOT:
-            self.figure = Figure(figsize=(4, 3))
-            self.canvas = _Canvas(self.figure)
-            self.ax = self.figure.add_subplot(111)
-            lay.addWidget(self.canvas)
-        else:  # pragma: no cover
-            self.canvas = None
-            lay.addWidget(QtWidgets.QLabel("matplotlib indisponível: gráfico desativado."))
-        return box
-
-    # ------------------------------------------------------------------ #
-    # helpers de widgets
-    # ------------------------------------------------------------------ #
-    def _pct_spin(self) -> QtWidgets.QDoubleSpinBox:
-        s = QtWidgets.QDoubleSpinBox()
-        s.setRange(0.0, 100.0)
-        s.setDecimals(2)
-        s.setSingleStep(0.5)
-        s.setSuffix(" %")
-        return s
-
-    def _pct_slider(self) -> QtWidgets.QSlider:
-        sl = QtWidgets.QSlider(Qt.Horizontal)
-        sl.setRange(0, 1000)
-        return sl
-
-    def _num_spin(self, lo, hi, val, decimals) -> QtWidgets.QDoubleSpinBox:
-        s = QtWidgets.QDoubleSpinBox()
-        s.setRange(lo, hi)
-        s.setDecimals(decimals)
-        s.setValue(val)
-        return s
-
-    # ------------------------------------------------------------------ #
-    # composição: normalização + redistribuição em tempo real
-    # ------------------------------------------------------------------ #
-    def _set_component(self, name: str, frac: float):
-        """Editar ``name`` para ``frac`` e redistribuir o restante entre os
-        outros dois componentes preservando a razão atual entre eles."""
-        if self._updating:
-            return
-        frac = min(max(float(frac), 0.0), 1.0)
-        others = [s for s in _COMPS if s != name]
-        s_other = sum(self._comp[o] for o in others)
-        rem = 1.0 - frac
-        if s_other > 1e-9:
-            for o in others:
-                self._comp[o] = rem * (self._comp[o] / s_other)
+    def closeEvent(self, event):
+        QSettings().setValue(_SETTINGS_GEOMETRY, self.saveGeometry())
+        if self._maybe_save():
+            event.accept()
         else:
-            # ambos os outros são ~0: atribui o restante ao CO2 (complemento padrão)
-            for o in others:
-                self._comp[o] = rem if o == "CO2" else 0.0
-        self._comp[name] = frac
-        # clamp numérico e renormalização final (defesa contra drift)
-        tot = sum(self._comp.values())
-        if tot > 0:
-            for s in _COMPS:
-                self._comp[s] = self._comp[s] / tot
-        self._set_composition(dict(self._comp))
-
-    def _set_composition(self, comp: dict):
-        """Sincroniza spins/sliders/total a partir do dict de frações."""
-        if self._updating:
-            return
-        self._updating = True
-        try:
-            for s in _COMPS:
-                v = float(comp.get(s, 0.0))
-                self._comp[s] = v
-                self.spins[s].setValue(v * 100.0)
-                self.sliders[s].setValue(int(round(v * 1000)))
-            tot = sum(self._comp.values())
-            self.total_lbl.setText(f"{tot * 100:5.1f} %")
-        finally:
-            self._updating = False
-        self._refresh_props()
-        self._refresh_safety()
-        self.feed_changed.emit()
-
-    def _refresh_props(self):
-        p_bar = self.p_spin.value() if hasattr(self, "p_spin") else 1.01325
-        comp = {s: self._comp[s] for s in _COMPS if self._comp[s] > 0}
-        if not comp:
-            comp = {"CH4": 1.0}
-        props = mixture_properties_general(comp, T=298.15, P=p_bar * 1e5)
-        d = props.as_dict()
-        for key, _label, _unit, fmt in _READOUTS:
-            self._readout_labels[key].setText(fmt.format(d[key]))
-
-    def _refresh_safety(self):
-        if not hasattr(self, "safety_lbl"):
-            return
-        if hasattr(self, "maxh2s_spin"):
-            safety.set_max_h2s_treated_ppm(self.maxh2s_spin.value())
-        feed_h2s = self._comp["H2S"]
-        if safety.h2s_present(feed_h2s):
-            warns = safety.h2s_warnings(feed_h2s, 0.0)
-            head = warns[0] if warns else "H₂S presente na alimentação."
-            self.safety_lbl.setText(head + "\n\n⚠ Gas tóxico e corrosivo -- "
-                                     "requer remocao antes do uso.")
-            self.safety_lbl.setStyleSheet("color: #b00; font-weight: 600;")
-        else:
-            self.safety_lbl.setText("Sem H₂S na alimentação.")
-            self.safety_lbl.setStyleSheet("color: #444;")
-
-    def _on_preset(self, name: str):
-        frac = PRESETS.get(name)
-        if frac is not None:
-            self._set_composition(dict(frac))
-
-    def _on_tech_changed(self, tech: str):
-        # aplica condições operacionais padrão da tecnologia
-        op = cases.DEFAULT_OPERATING.get(tech.lower())
-        if not op:
-            return
-        self._updating = True
-        try:
-            self.p_spin.setValue(op["P_bar"])
-            self.lv_spin.setValue(op["L_over_V"])
-            self.n_spin.setValue(op["N_stages"])
-            self.h_spin.setValue(op["height_m"])
-        finally:
-            self._updating = False
-        self._refresh_props()
-        self.feed_changed.emit()
-
-    # ------------------------------------------------------------------ #
-    # estado de alimentação compartilhado (fonte única p/ aba de comparação)
-    # ------------------------------------------------------------------ #
-    def feed_conditions(self) -> dict:
-        """Estado de alimentação herdado pela aba de comparação (fonte única).
-
-        Composição (CH4/CO2/H2S), vazão, pressão e temperatura do feed -- os
-        mesmos valores da aba Simulação, sem cópia independente.
-        """
-        return {
-            "comp": dict(self._comp),
-            "flow": self.flow_spin.value(),
-            "P_bar": self.p_spin.value(),
-            "T_K": 298.15,                      # feed a 25 °C (modelo isotérmico)
-            "tech": self.tech.currentText(),
-            "thermodynamic_model": "Peng-Robinson",
-        }
-
-    def _current_case(self) -> cases.Case:
-        feed = {s: self._comp[s] for s in _COMPS if self._comp[s] > 1e-9}
-        if not feed:
-            feed = {"CH4": 1.0}
-        feed["flow_mols"] = self.flow_spin.value()
-        return cases.Case(
-            name="gui",
-            technology=self.tech.currentText(),
-            feed=feed,
-            operating={"P_bar": self.p_spin.value(), "L_over_V": self.lv_spin.value(),
-                       "N_stages": int(self.n_spin.value()), "height_m": self.h_spin.value()},
-        )
-
-    def _on_run(self):
-        self.status.setText("Executando...")
-        try:
-            out = cases.run_case(self._current_case())
-            metrics = out["metrics"]
-        except Exception as exc:  # pragma: no cover - erro numérico
-            self.status.setText(f"Erro: {exc}")
-            return
-        self._fill_table(metrics)
-        self._refresh_safety_with_result(metrics)
-        conv = metrics.get("converged")
-        self.status.setText(
-            f"Convergiu: {conv} | iterações: {metrics.get('iterations', '-')} | "
-            f"pureza {metrics.get('purity_CH4')}% | recuperação {metrics.get('recovery_CH4')}%"
-        )
-        return metrics
-
-    def _refresh_safety_with_result(self, metrics: dict):
-        feed_h2s = self._comp["H2S"]
-        if not safety.h2s_present(feed_h2s):
-            return
-        t_ppm = metrics.get("treated_H2S_ppm", 0.0) or 0.0
-        warns = safety.h2s_warnings(feed_h2s, t_ppm,
-                                    metrics.get("liquid_H2S_loading_mol_per_mol"))
-        suit = safety.engine_suitable(t_ppm)
-        text = "\n".join(warns) + f"\nAdequado p/ motor: {'SIM' if suit else 'NÃO'}"
-        self.safety_lbl.setText(text)
-        self.safety_lbl.setStyleSheet("color: #b00; font-weight: 600;" if not suit
-                                       else "color: #060; font-weight: 600;")
-
-    def _on_sweep(self):
-        self.status.setText("Varrendo H2S...")
-        op = self._current_case().operating
-        try:
-            rows = cases.sweep_h2s("water", cases.frange(0.0, 0.05, 0.005),
-                                   ch4_co2_ratio=(self._comp["CH4"]
-                                                  / max(self._comp["CH4"] + self._comp["CO2"], 1e-9)),
-                                   operating=op, flow=self.flow_spin.value())
-        except Exception as exc:  # pragma: no cover
-            self.status.setText(f"Erro na varredura: {exc}")
-            return []
-        self._plot_sweep(rows)
-        ok = sum(1 for r in rows if r.get("converged"))
-        self.status.setText(f"Varredura H₂S: {ok}/{len(rows)} pontos convergiram.")
-        return rows
-
-    def _fill_table(self, metrics: dict):
-        self.table.setRowCount(0)
-        for label, key, unit in _RESULT_ROWS:
-            if key not in metrics or metrics[key] is None:
-                continue
-            row = self.table.rowCount()
-            self.table.insertRow(row)
-            self.table.setItem(row, 0, QtWidgets.QTableWidgetItem(label))
-            self.table.setItem(row, 1, QtWidgets.QTableWidgetItem(str(metrics[key])))
-            self.table.setItem(row, 2, QtWidgets.QTableWidgetItem(unit))
-
-    def _plot_sweep(self, rows):
-        if not _HAS_PLOT or self.canvas is None:
-            return
-        xs = [r["feed_H2S_pct"] for r in rows if r.get("converged")]
-        h2sr = [r.get("H2S_removal") for r in rows if r.get("converged")]
-        rec = [r.get("recovery_CH4") for r in rows if r.get("converged")]
-        co2r = [r.get("CO2_removal") for r in rows if r.get("converged")]
-        self.ax.clear()
-        if xs:
-            self.ax.plot(xs, h2sr, "-o", label="Remoção H₂S (%)", markersize=3)
-            self.ax.plot(xs, rec, "-s", label="Recuperação CH₄ (%)", markersize=3)
-            self.ax.plot(xs, co2r, "-^", label="Remoção CO₂ (%)", markersize=3)
-        self.ax.set_xlabel("H₂S na alimentação (mol%)")
-        self.ax.set_ylabel("%")
-        self.ax.set_title("Desempenho vs H₂S")
-        self.ax.legend(fontsize=8)
-        self.ax.grid(True, alpha=0.3)
-        self.figure.tight_layout()
-        self.canvas.draw_idle()
+            event.ignore()
 
 
-__all__ = ["MainWindow", "PRESETS"]
+__all__ = ["MainWindow"]

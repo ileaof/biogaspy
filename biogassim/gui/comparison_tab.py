@@ -90,6 +90,9 @@ class ComparisonWorker(QtCore.QThread):
 # Aba
 # --------------------------------------------------------------------------- #
 class ComparisonTab(QtWidgets.QWidget):
+    #: emitido quando a comparação termina (linhas) -- p/ Desempenho & Economia.
+    comparison_finished = Signal(list)
+
     def __init__(self, main_window):
         super().__init__()
         self.main = main_window
@@ -450,6 +453,7 @@ class ComparisonTab(QtWidgets.QWidget):
 
     def _on_finished(self, rows):
         self.rows = rows
+        self.comparison_finished.emit(rows)
         self.run_btn.setEnabled(True); self.stop_btn.setEnabled(False)
         ok = sum(1 for r in rows if r.get("converged"))
         fail = len(rows) - ok

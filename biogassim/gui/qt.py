@@ -10,13 +10,13 @@ from __future__ import annotations
 QT_BINDING = ""
 try:  # preferência do projeto
     from PySide6 import QtCore, QtGui, QtWidgets
-    from PySide6.QtCore import Qt, Signal
+    from PySide6.QtCore import QObject, QSettings, Qt, Signal
 
     QT_BINDING = "PySide6"
 except ImportError:  # pragma: no cover - depende do ambiente
     try:
         from PyQt5 import QtCore, QtGui, QtWidgets
-        from PyQt5.QtCore import Qt
+        from PyQt5.QtCore import QObject, QSettings, Qt
         from PyQt5.QtCore import pyqtSignal as Signal
 
         QT_BINDING = "PyQt5"
@@ -33,4 +33,16 @@ def exec_app(app) -> int:
     return int(run())
 
 
-__all__ = ["QtCore", "QtGui", "QtWidgets", "Qt", "Signal", "QT_BINDING", "exec_app"]
+__all__ = ["QtCore", "QtGui", "QtWidgets", "Qt", "Signal", "QObject", "QSettings",
+           "QT_BINDING", "exec_app"]
+
+def ensure_app_identity():
+    """Garante organização/aplicativo para QSettings (registro/ini) mesmo
+    quando a QApplication foi criada fora do app.main() (ex.: testes)."""
+    inst = QtCore.QCoreApplication.instance()
+    if inst is None:
+        return
+    if not inst.organizationName():
+        inst.setOrganizationName("FEM-ITEC-UFPA")
+    if not inst.applicationName():
+        inst.setApplicationName("BioGasSim")

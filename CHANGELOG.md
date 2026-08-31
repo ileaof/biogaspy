@@ -6,6 +6,47 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+### Adicionado (modernização da GUI, 2026-08-30)
+
+- **Arquitetura modelo–vista** (`biogassim/gui/`): `state.py` (`AppState`
+  com sinais e estados visuais READY/RUNNING/CONVERGED/WARNING/FAILED/
+  OUTDATED), `workers.py` (`FunctionWorker`/`ParametricWorker` executando
+  ciência em QThread com cancelamento e `friendly_error`), `project.py`
+  (`ProjectManager` com dirty tracking e arquivos recentes em QSettings),
+  `tabs.py` (7 classes de vista puras) e `qt.py` (shim PySide6/PyQt5).
+- **Janela principal profissional** (`main_window.py`): 8 abas-alvo (Projeto,
+  Alimentação & Condições, Lavagem de Gás, Resultados do Processo, Comparação
+  de Processos, Desempenho & Economia, Estudos Paramétricos, Relatórios),
+  menus (Arquivo/Simulação/Ferramentas/Exibir/Ajuda), toolbar, barra de
+  status com chip de estado, atalhos de teclado, tema claro/escuro e
+  geometria persistentes.
+- **Simulação não-bloqueante**: `run_case`/estudos em `QThread` — a janela
+  permanece responsiva durante a iteração do solver.
+- **Marcação de resultados obsoletos**: edição de alimentação/operacionais
+  passa o projeto a OUTDATED (banner + tabela em itálico) até reexecução.
+- **Segurança de H₂S visual**: classificação PASS/WARNING/FAIL na aba
+  Lavagem de Gás, calculada exclusivamente por `biogassim.safety`.
+- **Projeto = `case.json` da CLI**: salvar/abrir/recentes usam o mesmo
+  serializador da CLI (`cases.save_case/load_case`) — um projeto salvo na
+  GUI roda direto com `biogasim run case.json`.
+- **`QScrollArea` independente por aba** (incluindo Desempenho & Economia);
+  Comparação mantém as suas por sub-aba (componente preservado).
+- **Suíte de testes da GUI** (`tests/test_gui.py`, 32 testes, offscreen):
+  janela/menus/abas, composição, estados, obsoletência, projeto, segurança,
+  estudos paramétricos canceláveis, **paridade numérica GUI ≡ CLI**
+  (rel=1e-9) e fluxo ponta-a-ponta de 19 passos. Suíte completa: **324
+  testes passando**; `ruff` limpo.
+- **`BIOGASPY_GUI_AUDIT.md`**: relatório completo de auditoria (status,
+  melhorias, pendências, testes, consistência CLI/GUI, próximos passos).
+
+### Preservado
+
+- `gui/comparison_tab.py` mantido (2 linhas de integração) — worker em
+  thread e ciência via `biogassim.comparison` já estavam corretos.
+- Lógica de composição (redistribuição/normalização) migrada verbatim.
+- CLI inalterada; todos os cálculos científicos seguem no backend
+  (`cases`, `comparison`, `Properties`, `UnitOperations`, `safety`, `Export`).
+
 ### Adicionado (auditoria de prontidão — Fases 2 e 3, 2026-08-30)
 
 - **Correção de Poynting na fuga líquida** (`Thermodynamics/Henry.py`):
