@@ -42,10 +42,10 @@ def _ch4_co2_z(composition):
 
 def run_case(material: str = "Polyimide", P_feed_bar: float = 15.0,
              P_perm_bar: float = 1.0, flow: float = 100.0,
-             composition=None, save: bool = True) -> dict:
+             composition=None, save: bool = True, T_C: float = 35.0) -> dict:
     species = ["CH4", "CO2"]
     z = _ch4_co2_z(composition)
-    Pf, Pp, T = P_feed_bar * 1e5, P_perm_bar * 1e5, 308.15
+    Pf, Pp, T = P_feed_bar * 1e5, P_perm_bar * 1e5, float(T_C) + 273.15
 
     s = single_stage(material, species, z, flow, T, Pf, Pp, stage_cut=0.65)
     d = two_stage_recycle(material, species, z, flow, T, Pf, Pp, cut1=0.65, cut2=0.6)

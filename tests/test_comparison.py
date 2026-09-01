@@ -59,6 +59,38 @@ def test_ternary_h2s_composition_water_absorbs_h2s():
     assert _row(rows_mea, "mea")["converged"]
 
 
+# ----------------------- temperatura herdada (T_C) ------------------------- #
+def test_engine_T_C_none_keeps_method_defaults():
+    """T_C=None (padrão) => regressão: cada método usa seu default de T."""
+    eng = _engine(FEED_BINARY, ("water",))
+    assert eng.T_C is None
+    rows = eng.run()
+    assert _row(rows, "water")["converged"]
+
+
+def test_engine_T_C_injected_into_all_methods():
+    """T_C herdado entra nos params de TODOS os métodos (mesma condição)."""
+    eng = _engine(FEED_BINARY, ("water", "mea"), T_C=30.0)
+    assert eng.T_C == 30.0
+    assert eng._resolved_params("water")["T_C"] == 30.0
+    assert eng._resolved_params("mea")["T_C"] == 30.0
+
+
+def test_engine_T_C_higher_reduces_water_CO2_removal():
+    """Física: solubilidade de CO2 em água cai com T => remoção menor."""
+    lo = _engine(FEED_BINARY, ("water",), T_C=10.0).run()
+    hi = _engine(FEED_BINARY, ("water",), T_C=60.0).run()
+    r_lo, r_hi = _row(lo, "water"), _row(hi, "water")
+    assert r_lo["converged"] and r_hi["converged"]
+    assert r_hi["CO2_removal"] < r_lo["CO2_removal"]
+
+
+def test_report_includes_T_C():
+    eng = _engine(FEED_BINARY, ("water",), T_C=25.0)
+    rep = eng.report(eng.run())
+    assert rep["T_C"] == 25.0
+
+
 # --------------------------- cada método ----------------------------------- #
 @pytest.mark.parametrize("key", [
     "water", "mea", "mdea", "selexol", "psa", "membrane", "membrane_multi",
@@ -292,6 +324,19 @@ def test_cli_compare_with_case_inherits_feed(tmp_path):
     assert "flow=50" in r.stdout
 
 
+def test_cli_compare_with_case_inherits_T_C(tmp_path):
+    """``compare --case`` herda a temperatura da coluna do caso."""
+    from biogassim import cases
+    c = cases.Case(name="t", technology="water",
+                   feed={"CH4": 0.60, "CO2": 0.40},
+                   operating={"T_C": 55.0})
+    p = tmp_path / "case.json"
+    cases.save_case(c, str(p))
+    r = _run_cli(["compare", "--case", str(p), "water"])
+    assert r.returncode == 0, r.stderr
+    assert "T=55.0 °C" in r.stdout
+
+
 def test_cli_compare_export_json(tmp_path):
     out = tmp_path / "rep.json"
     r = _run_cli(["compare", "water", "mea", "--export", str(out)])
@@ -327,6 +372,14 @@ def test_comparison_tab_constructs_and_inherits_feed(app):
     # cabeçalho herdado mostra a composição da aba principal (47/53 default)
     assert "47" in tab.header_labels["CH4"].text() or "47.00" in tab.header_labels["CH4"].text()
     assert tab.header_labels["Modelo"].text() == "Peng-Robinson"
+
+
+def test_comparison_tab_engine_inherits_temperature(app):
+    """A comparação herda a temperatura da coluna da aba Lavagem de Gás."""
+    w = MainWindow()
+    w.gas_tab.t_spin.setValue(30.0)
+    eng = w.comp_tab._build_engine()
+    assert eng.T_C == 30.0
 
 
 def test_comparison_tab_has_two_subtabs(app):

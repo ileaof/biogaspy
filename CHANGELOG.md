@@ -25,10 +25,32 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   `sensitivity`/`optimize` aceitam `T_C` (`_OP_KEYS`/`_OP_VARS`). Física
   verificada: remoção de CO₂ cai com T (solubilidade), ex.: water 10 °C →
   100%, 30 °C → 99,95%, 40 °C → 68,1%.
-- **Fora do escopo (follow-up)**: adaptadores da Comparação de Métodos
-  mantêm T fixo por método (`ComparisonEngine.T_K` segue metadado).
+- **Fora do escopo (follow-up)**: ~~adaptadores da Comparação de Métodos
+  mantêm T fixo por método~~ → implementado no mesmo dia (ver abaixo).
 - **Testes**: 9 novos (backend/validação/round-trip/monotonia, GUI,
   CLI `set T_C`). Suíte completa: **339 testes passando**.
+
+### Adicionado (comparação herda temperatura, 2026-09-01)
+
+- **Comparação de Métodos herda a temperatura da coluna** (mesma decisão da
+  vazão: comparação justa exige a mesma condição — sem campo independente).
+  `ComparisonEngine(feed, ..., T_C=None)` — quando `T_C` é informado, é
+  injetado nos params de **todos** os métodos (`_resolved_params`); `None`
+  mantém os defaults por método (regressão/CLI sem `--case`).
+- **Adaptadores**: `_adapt_water` (default 20 °C), `_run_amine` (40 °C),
+  `_run_physical` (25 °C), `_adapt_psa` (25 °C), `_adapt_membrane`/
+  `_adapt_membrane_multi` (35 °C) consomem `T_C` dos params. Wrappers
+  `PSA/Membrane/MembraneMultiStage.run_case` ganharam `T_C` (defaults que
+  preservam o comportamento anterior: 25/35/35 °C).
+- **GUI**: `_build_engine()` passa `T_C` do spin "Temperatura da coluna"
+  (Lavagem de Gás) — comparar com T herdada, junto com a vazão.
+- **CLI**: `compare --case` herda `T_C` de `case.operating` (sem caso, segue
+  `None`/defaults); cabeçalho do terminal mostra `T=… °C` quando herdada.
+- **Relatório**: dict e HTML incluem `T_C` (HTML exibe "T coluna" herdada,
+  com fallback ao metadado `T_K`).
+- **Testes**: 6 novos em `tests/test_comparison.py` (regressão `T_C=None`,
+  injeção em todos os métodos, monotonia física água T↑ → remoção↓,
+  relatório, CLI `--case`, GUI `_build_engine`). Suíte: **345 testes**.
 
 ### Adicionado (unidades de vazão na GUI, 2026-09-01)
 

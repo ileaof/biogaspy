@@ -426,8 +426,11 @@ class ComparisonTab(QtWidgets.QWidget):
     def _build_engine(self) -> ComparisonEngine:
         fc = self.main.feed_conditions()
         feed = {k: v for k, v in fc["comp"].items() if v > 0}
+        # herança da Lavagem de Gás: vazão E temperatura da coluna (mesma condição
+        # para comparação justa — sem campo independente nesta aba)
         return ComparisonEngine(feed, flow=fc["flow"], config=self.config,
-                                 T_K=fc["T_K"], P_feed_bar=1.01325)
+                                T_K=fc["T_K"], P_feed_bar=1.01325,
+                                T_C=self.main.gas_tab.t_spin.value())
 
     def _on_run(self):
         if not self.config.selected:

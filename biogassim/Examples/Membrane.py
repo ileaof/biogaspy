@@ -27,19 +27,21 @@ def _ch4_co2_z(composition):
 
 def run_case(material: str = "CelluloseAcetate", P_feed_bar: float = 10.0,
              P_perm_bar: float = 0.2, stage_cut: float = 0.5,
-             flow: float = 100.0, composition=None, save: bool = True) -> dict:
+             flow: float = 100.0, composition=None, save: bool = True,
+             T_C: float = 35.0) -> dict:
     species = ["CH4", "CO2"]
     z = _ch4_co2_z(composition)
+    Tk = float(T_C) + 273.15
     # modo design: dado o corte-alvo, resolve a área requerida (não mais fixa).
-    r = single_stage(material, species, z, flow, 308.15,
+    r = single_stage(material, species, z, flow, Tk,
                      P_feed_bar * 1e5, P_perm_bar * 1e5, stage_cut=stage_cut)
     # energia: compressão do feed até P_feed + vácuo no permeado (P_perm).
-    gas_in = biogas_stream(flow, species=species, T=308.15, P=1.01325e5,
+    gas_in = biogas_stream(flow, species=species, T=Tk, P=1.01325e5,
                            composition={"CH4": float(z[0]), "CO2": float(z[1])})
     comp = compress(gas_in, P_feed_bar * 1e5, eta=0.75)
     # vácuo: potência ~ compressão do permeado de P_perm até 1 atm (estimativa)
     perm_flow = flow * r.stage_cut
-    gas_perm = biogas_stream(perm_flow, species=species, T=308.15,
+    gas_perm = biogas_stream(perm_flow, species=species, T=Tk,
                              P=P_perm_bar * 1e5,
                              composition={"CH4": float(z[0]), "CO2": float(z[1])})
     vacuum = compress(gas_perm, 1.01325e5, eta=0.6)

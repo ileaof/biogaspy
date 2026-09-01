@@ -149,7 +149,7 @@ def _adapt_water(composition, flow, p):
     out = WaterScrubbing.run_case(
         P_bar=p["P_bar"], L_over_V=p["L_over_V"], N_stages=int(p["N_stages"]),
         height=p["height_m"], flow=flow, save=False, composition=composition,
-        regen=bool(p.get("regen", True)))
+        regen=bool(p.get("regen", True)), T_C=p.get("T_C", 20.0))
     m = dict(out["metrics"])
     m["operating_pressure_bar"] = p["P_bar"]
     return m
@@ -166,8 +166,9 @@ def _run_amine(amine: str, solvent_cls, composition, flow, p):
     comp = _ch4_co2(composition)
     species = ["CH4", "CO2", "H2O", amine]
     P = p["P_bar"] * 1e5
+    Tk = float(p.get("T_C", 40.0)) + 273.15
     from .Examples.common import biogas_stream, metrics_from_absorber
-    gas_in = biogas_stream(flow, species=species, T=313.15, P=1.01325e5, composition=comp)
+    gas_in = biogas_stream(flow, species=species, T=Tk, P=1.01325e5, composition=comp)
     c = compress(gas_in, P, eta=0.75)
     gas_feed = Stream.make(species, c.out.z, c.out.flow, c.out.T, c.out.P, "vapor")
     # solvente magro: w_amine mássico -> frações molares
@@ -178,9 +179,9 @@ def _run_amine(amine: str, solvent_cls, composition, flow, p):
     z = np.zeros(len(species))
     z[species.index(amine)] = x_a
     z[species.index("H2O")] = 1.0 - x_a
-    solv = Stream.make(species, z, p["L_over_V"] * flow, T=313.15, P=P, phase="liquid")
+    solv = Stream.make(species, z, p["L_over_V"] * flow, T=Tk, P=P, phase="liquid")
     spec = AbsorberSpec(N_stages=int(p["N_stages"]), packing="Pall_50",
-                        mode="isothermal", T_op=313.15, pressure=P,
+                        mode="isothermal", T_op=Tk, pressure=P,
                         height=p["height_m"], max_iter=400)
     r = Absorber(gas_feed, solv, _make_solvent(solvent_cls, amine, w), spec).solve()
     m = metrics_from_absorber(f"{amine} (chemical)", r, gas_in)
@@ -230,14 +231,15 @@ def _run_physical(solvent_cls, composition, flow, p):
         gas_species = ["CH4", "CO2"]
     species = [*gas_species, "H2O"]
     P = p["P_bar"] * 1e5
-    gas_in = biogas_stream(flow, species=species, T=298.15, P=1.01325e5, composition=comp_dict)
+    Tk = float(p.get("T_C", 25.0)) + 273.15
+    gas_in = biogas_stream(flow, species=species, T=Tk, P=1.01325e5, composition=comp_dict)
     c = compress(gas_in, P, eta=0.75)
     gas_feed = c.out
     z_solv = np.zeros(len(species))
     z_solv[species.index("H2O")] = 1.0
-    solv = Stream.make(species, z_solv, p["L_over_V"] * flow, T=298.15, P=P, phase="liquid")
+    solv = Stream.make(species, z_solv, p["L_over_V"] * flow, T=Tk, P=P, phase="liquid")
     spec = AbsorberSpec(N_stages=int(p["N_stages"]), packing="Pall_50",
-                        mode="isothermal", T_op=298.15, pressure=P,
+                        mode="isothermal", T_op=Tk, pressure=P,
                         height=p["height_m"], max_iter=400)
     solvent = solvent_cls()
     r = Absorber(gas_feed, solv, solvent, spec).solve()
@@ -253,7 +255,7 @@ def _run_physical(solvent_cls, composition, flow, p):
             m[f"{s}_removal"] = round(100.0 * (1.0 - fout / fin), 2)
     # pumping com MM/ρ do solvente físico (não da água)
     mm = solvent.molar_mass_liquid()
-    rho = solvent.density(298.15)
+    rho = solvent.density(float(p.get("T_C", 25.0)) + 273.15)
     pumping = (p["L_over_V"] * flow * mm / rho) * P / 0.7 / 1000.0
     energy = EnergySummary(compression=compression_energy([c]), pumping=pumping)
     bio_nm3h = r.gas_out.flow * 0.0224 * 3600
@@ -280,7 +282,7 @@ def _adapt_rectisol(composition, flow, p):
 def _adapt_psa(composition, flow, p):
     m = PSA.run_case(P_high_bar=p["P_high_bar"], P_low_bar=p["P_low_bar"],
                      adsorbent=p["adsorbent"], composition=composition,
-                     flow=flow, save=False)["metrics"]
+                     flow=flow, save=False, T_C=p.get("T_C", 25.0))["metrics"]
     m["operating_pressure_bar"] = p["P_high_bar"]
     return m
 
@@ -288,7 +290,8 @@ def _adapt_psa(composition, flow, p):
 def _adapt_membrane(composition, flow, p):
     m = Membrane.run_case(material=p["material"], P_feed_bar=p["P_feed_bar"],
                           P_perm_bar=p["P_perm_bar"], stage_cut=p["stage_cut"],
-                          flow=flow, composition=composition, save=False)["metrics"]
+                          flow=flow, composition=composition, save=False,
+                          T_C=p.get("T_C", 35.0))["metrics"]
     m["operating_pressure_bar"] = p["P_feed_bar"]
     return m
 
@@ -296,7 +299,8 @@ def _adapt_membrane(composition, flow, p):
 def _adapt_membrane_multi(composition, flow, p):
     m = MembraneMultiStage.run_case(material=p["material"], P_feed_bar=p["P_feed_bar"],
                                     P_perm_bar=p["P_perm_bar"], flow=flow,
-                                    composition=composition, save=False)["metrics"]
+                                    composition=composition, save=False,
+                                    T_C=p.get("T_C", 35.0))["metrics"]
     m["operating_pressure_bar"] = p["P_feed_bar"]
     return m
 
@@ -474,12 +478,16 @@ class ComparisonEngine:
 
     def __init__(self, feed: dict, flow: float = 100.0,
                  config: ComparisonConfig | None = None,
-                 T_K: float = 298.15, P_feed_bar: float = 1.01325):
+                 T_K: float = 298.15, P_feed_bar: float = 1.01325,
+                 T_C: float | None = None):
         self.feed = {k: float(v) for k, v in feed.items()}
         self.flow = float(flow)
         self.config = config or ComparisonConfig()
         self.T_K = float(T_K)
         self.P_feed_bar = float(P_feed_bar)
+        # Temperatura herdada (°C): injetada nos params de TODOS os métodos
+        # (mesma condição para comparação justa). None => defaults por método.
+        self.T_C = None if T_C is None else float(T_C)
 
     # --------------------------- execução principal ------------------------ #
     def run(self, progress: Callable[[str, str, int, int], None] | None = None,
@@ -518,6 +526,8 @@ class ComparisonEngine:
     def _resolved_params(self, key: str) -> dict:
         """Modo otimizado: busca em grade simples antes de rodar; senão, defaults."""
         params = self.config.params_for(key)
+        if self.T_C is not None:
+            params["T_C"] = self.T_C          # herança: mesmo T p/ todos
         if self.config.mode != "optimized":
             return params
         return self._optimize_params(key, params)
@@ -722,6 +732,7 @@ class ComparisonEngine:
             "feed": {k: v for k, v in self.feed.items()},
             "flow_mols": self.flow,
             "T_K": self.T_K,
+            "T_C": self.T_C,
             "P_feed_bar": self.P_feed_bar,
             "thermodynamic_model": "Peng-Robinson",
             "mode": self.config.mode,
@@ -789,6 +800,8 @@ def _export_html_report(report: dict, path) -> None:
     rank = "".join(
         f"<li>{r.get('method_label')}: score {r.get('score')}</li>"
         for r in report.get("ranking", []))
+    # temperatura exibida: T herdado da coluna (°C), ou o metadado T_K como fallback
+    t_src = report["T_C"] if report.get("T_C") is not None else report["T_K"] - 273.15
     html = f"""<!doctype html><html><head><meta charset='utf-8'>
     <title>{report['title']}</title>
     <style>body{{font-family:sans-serif}} table{{border-collapse:collapse}}
@@ -796,7 +809,7 @@ def _export_html_report(report: dict, path) -> None:
     </head><body><h1>{report['title']}</h1>
     <h2>Condições de alimentação (herdadas)</h2>
     <table><tr><th>Espécie</th><th>Fração</th></tr>{feed_lines}</table>
-    <p>Vazão: {report['flow_mols']} mol/s | T: {report['T_K']-273.15:.1f} °C |
+    <p>Vazão: {report['flow_mols']} mol/s | T coluna: {t_src:.1f} °C |
     P: {report['P_feed_bar']} bar | Modelo: {report['thermodynamic_model']} |
     Modo: {report['mode']}</p>
     <h2>Tabela comparativa</h2><table><thead><tr>{head}</tr></thead>

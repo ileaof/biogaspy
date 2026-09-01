@@ -24,10 +24,11 @@ def _ch4_co2(composition):
 
 def run_case(P_high_bar: float = 7.0, P_low_bar: float = 0.2,
              adsorbent: str = "Zeolite_13X", composition=None,
-             flow: float = 100.0, save: bool = True) -> dict:
+             flow: float = 100.0, save: bool = True, T_C: float = 25.0) -> dict:
     y_in = _ch4_co2(composition)
+    Tk = float(T_C) + 273.15
     cycle = PSACycle(adsorbent=adsorbent, P_high=P_high_bar * 1e5,
-                     P_low=P_low_bar * 1e5, T=298.15)
+                     P_low=P_low_bar * 1e5, T=Tk)
     out = cycle.purity_estimate(y_in)
     bed = fixed_bed_simple(adsorbent, y_in, cycle.P_high, cycle.T,
                            bed_mass=500.0, flow=flow)
@@ -35,7 +36,7 @@ def run_case(P_high_bar: float = 7.0, P_low_bar: float = 0.2,
     # energia: compressão do biogás de 1 atm até P_high (estimativa, mesma base
     # que os demais métodos -- reusa o Compressor, não inventa termodinâmica).
     species = ["CH4", "CO2"]
-    gas_in = biogas_stream(flow, species=species, T=298.15, P=1.01325e5,
+    gas_in = biogas_stream(flow, species=species, T=Tk, P=1.01325e5,
                            composition=y_in)
     comp = compress(gas_in, cycle.P_high, eta=0.75)
     energy = EnergySummary(compression=compression_energy([comp]))

@@ -87,10 +87,13 @@ def _cmd_compare(args):
     )
 
     # feed: herda de --case se informado, senão biogás 47/53
+    t_c = None
     if args.case and os.path.exists(args.case):
         case = cases.load_case(args.case)
         feed = {k: v for k, v in case.feed.items() if k != "flow_mols"}
         flow = case.feed.get("flow_mols", 100.0)
+        # temperatura herdada do caso (mesma condição para todos os métodos)
+        t_c = case.operating.get("T_C")
     else:
         feed = {"CH4": 0.47, "CO2": 0.53}
         flow = 100.0
@@ -114,13 +117,14 @@ def _cmd_compare(args):
         selected = recommended_methods()
 
     cfg = ComparisonConfig(selected=selected, mode=args.mode)
-    eng = ComparisonEngine(feed, flow=flow, config=cfg)
+    eng = ComparisonEngine(feed, flow=flow, config=cfg, T_C=t_c)
     rows = eng.run()
 
     # tabela no terminal
     print("=" * 92)
     print(f"COMPARAÇÃO -- feed {', '.join(f'{k}={v*100:.1f}%' for k, v in feed.items())}"
-          f"  flow={flow} mol/s  modo={args.mode}")
+          f"  flow={flow} mol/s"
+          f"{'  T=' + format(t_c, '.1f') + ' °C' if t_c is not None else ''}  modo={args.mode}")
     print("=" * 92)
     hdr = (f"{'Método':<24}{'Conv':>5}{'Pureza%':>8}{'Recup%':>8}{'CO2r%':>7}"
            f"{'H2Sr%':>7}{'kW':>9}{'kWh/Nm³':>9}{'USD/Nm³':>9}")
