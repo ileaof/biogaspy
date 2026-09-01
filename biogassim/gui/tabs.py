@@ -72,6 +72,21 @@ _READOUTS = [
     ("specific_gravity", "Densidade relativa", "(ar=1)", "{:.4f}"),
 ]
 
+# Unidades de vazão da alimentação (rótulo, decimais, fator).
+# O fator converte a unidade exibida -> mol/s (SI). Fator None => dinâmico
+# (depende da composição; calculado pelo backend em FeedTab._flow_factor).
+# O caso (case.json) guarda sempre ``flow_mols`` em mol/s -- a unidade é só
+# preferência de exibição/entrada da GUI.
+_FLOW_RANGE_MOLS = (1.0, 1e5)          # faixa física admitida, em mol/s
+FLOW_UNITS = [                          # (rótulo, decimais, fator)
+    ("mol/s", 1, 1.0),
+    ("mol/h", 0, 1.0 / 3600.0),
+    ("kmol/s", 3, 1000.0),
+    ("kmol/h", 2, 1000.0 / 3600.0),
+    ("kg/h", 1, None),                 # massa: requer massa molar da mistura
+    ("Nm³/h", 1, None),                # volume normal: requer densidade normal
+]
+
 # Métricas do dashboard de resultados (rótulo, chave, unidade).
 _RESULT_ROWS = [
     ("Pureza CH₄", "purity_CH4", "%"),
@@ -237,12 +252,20 @@ class FeedTab(QtWidgets.QWidget):
         box = QtWidgets.QGroupBox("Condições da alimentação")
         form = QtWidgets.QFormLayout(box)
         self.flow_spin = QtWidgets.QDoubleSpinBox()
-        self.flow_spin.setRange(1.0, 1e5)
-        self.flow_spin.setDecimals(1)
-        self.flow_spin.setValue(100.0)
-        self.flow_spin.setSuffix(" mol/s")
         self.flow_spin.valueChanged.connect(lambda _v: self.main.feed_changed.emit())
-        form.addRow("Vazão do biogás", self.flow_spin)
+        self.flow_unit = QtWidgets.QComboBox()
+        for label, _dec, _f in FLOW_UNITS:
+            self.flow_unit.addItem(label)
+        self._flow_unit_idx = 0
+        self.flow_unit.currentIndexChanged.connect(self._on_flow_unit_changed)
+        self._update_flow_range()
+        self.set_flow_mols(100.0)
+        flow_row = QtWidgets.QHBoxLayout()
+        flow_row.addWidget(self.flow_spin, 1)
+        flow_row.addWidget(self.flow_unit)
+        flow_holder = QtWidgets.QWidget()
+        flow_holder.setLayout(flow_row)
+        form.addRow("Vazão do biogás", flow_holder)
         lab = QtWidgets.QLabel("Temperatura: 25 °C | Modelo termodinâmico: Peng–Robinson")
         lab.setStyleSheet("color: #444;")
         form.addRow(lab)
@@ -306,6 +329,51 @@ class FeedTab(QtWidgets.QWidget):
         sl = QtWidgets.QSlider(Qt.Horizontal)
         sl.setRange(0, 1000)
         return sl
+
+    # -- vazão: unidades de entrada (o caso guarda sempre mol/s) ------------- #
+    def _flow_factor(self, idx: int | None = None) -> float:
+        """Fator unidade-exibida -> mol/s. Para kg/h e Nm³/h o fator depende
+        da composição (massa molar e densidade normal, via backend)."""
+        label, _dec, f = FLOW_UNITS[self.flow_unit.currentIndex()
+                                    if idx is None else idx]
+        if f is not None:
+            return float(f)
+        comp = {s: v for s, v in self._comp.items() if v > 1e-9} or {"CH4": 1.0}
+        props = mixture_properties_general(comp, T=298.15, P=101325.0).as_dict()
+        mm = float(props["molar_mass_gmol"])          # g/mol
+        if label == "kg/h":
+            return 1000.0 / 3600.0 / mm               # kg/h -> mol/s
+        rho_n = float(props["density_normal"])        # kg/Nm³
+        return 1000.0 * rho_n / 3600.0 / mm           # Nm³/h -> mol/s
+
+    def flow_mols(self) -> float:
+        """Vazão da alimentação em mol/s (unidade canônica do caso)."""
+        return max(self.flow_spin.value() * self._flow_factor(), 0.0)
+
+    def set_flow_mols(self, mols: float):
+        """Define a vazão física (mol/s), exibida na unidade corrente."""
+        self.flow_spin.setValue(float(mols) / self._flow_factor())
+
+    def format_flow(self, mols: float) -> str:
+        """Formata uma vazão em mol/s na unidade corrente do seletor
+        (p/ exibição em outras abas -- cabeçalho da Comparação, status)."""
+        label, dec, _f = FLOW_UNITS[self.flow_unit.currentIndex()]
+        return f"{mols / self._flow_factor():.{dec}f} {label}"
+
+    def _update_flow_range(self):
+        label, dec, _f = FLOW_UNITS[self.flow_unit.currentIndex()]
+        lo, hi = _FLOW_RANGE_MOLS
+        f = self._flow_factor()
+        self.flow_spin.setRange(lo / f, hi / f)
+        self.flow_spin.setDecimals(dec)
+        self.flow_spin.setSuffix(f" {label}")
+
+    def _on_flow_unit_changed(self, idx: int):
+        """Troca de unidade preservando o valor físico da vazão."""
+        mols = self.flow_spin.value() * self._flow_factor(self._flow_unit_idx)
+        self._flow_unit_idx = idx
+        self._update_flow_range()
+        self.flow_spin.setValue(mols / self._flow_factor())
 
     # -- composição: preservado da versão anterior --------------------------- #
     def _set_component(self, name: str, frac: float):
@@ -821,8 +889,10 @@ class ParametricTab(QtWidgets.QWidget):
 
     def _range_for(self, key: str) -> tuple:
         if key in ("P_bar", "L_over_V", "N_stages", "height_m", "flow_mols"):
-            op = self.main._current_case().operating
-            base = float(op[key])
+            case = self.main._current_case()
+            # flow_mols vive no feed (em mol/s); os demais, em operating.
+            base = float(case.feed["flow_mols"] if key == "flow_mols"
+                         else case.operating[key])
             span = {"P_bar": (0.25, 1.5), "L_over_V": (0.25, 2.0),
                     "N_stages": (0.5, 2.0), "height_m": (0.25, 2.0),
                     "flow_mols": (0.25, 3.0)}[key]

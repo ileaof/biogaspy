@@ -445,3 +445,92 @@ def test_final_workflow_end_to_end(tmp_path):
     export_comparison(eng.report(window.comp_tab.rows), out)
     data = json.loads(pathlib.Path(out).read_text(encoding="utf-8"))
     assert len(data["rows"]) == 2
+
+
+# --------------------------------------------------------------------------- #
+# Unidades de vazão da alimentação (o caso guarda sempre mol/s)
+# --------------------------------------------------------------------------- #
+def test_flow_units_fixed_conversion():
+    """Unidades molares: fator fixo, valor físico preservado ao trocar."""
+    window = mkwindow()
+    ft = window.feed_tab
+    assert ft.flow_unit.currentText() == "mol/s"
+    ft.set_flow_mols(100.0)
+    assert ft.flow_mols() == pytest.approx(100.0)
+
+    # kmol/h: 100 mol/s = 360 kmol/h
+    ft.flow_unit.setCurrentIndex(3)
+    assert ft.flow_spin.suffix() == " kmol/h"
+    assert ft.flow_spin.value() == pytest.approx(360.0, abs=5e-3)
+    assert ft.flow_mols() == pytest.approx(100.0, rel=1e-6)
+
+    # mol/h e kmol/s
+    ft.flow_unit.setCurrentIndex(1)
+    assert ft.flow_spin.value() == pytest.approx(360000.0, abs=0.5)
+    ft.flow_unit.setCurrentIndex(2)
+    assert ft.flow_spin.value() == pytest.approx(0.1, abs=5e-4)
+    assert ft.flow_mols() == pytest.approx(100.0, rel=1e-6)
+    # o caso continua recebendo mol/s, independente da unidade exibida
+    assert window._current_case().feed["flow_mols"] == pytest.approx(100.0)
+
+
+def test_flow_units_dynamic_mass_and_normal_volume():
+    """kg/h e Nm³/h: fator calculado pelo backend (composição-dependente),
+    preservando o valor físico ao trocar de unidade."""
+    window = mkwindow()
+    ft = window.feed_tab
+    ft.set_flow_mols(100.0)
+
+    ft.flow_unit.setCurrentIndex(4)                     # kg/h
+    assert ft.flow_spin.suffix() == " kg/h"
+    assert ft.flow_spin.value() > 0.0
+    assert ft.flow_mols() == pytest.approx(100.0, rel=1e-3)   # arredond. exibição
+
+    ft.flow_unit.setCurrentIndex(5)                     # Nm³/h
+    assert ft.flow_spin.suffix() == " Nm³/h"
+    assert ft.flow_spin.value() > 0.0
+    assert ft.flow_mols() == pytest.approx(100.0, rel=1e-3)
+
+    # fator de Nm³/h muda com a composição (massa molar/densidade normais)
+    window._set_component("CO2", 0.0)
+    window._set_component("CH4", 1.0)
+    n_display = ft.flow_spin.value()
+    assert n_display > 0.0
+    assert ft.flow_mols() == pytest.approx(100.0, rel=1e-3)
+
+
+def test_flow_units_case_roundtrip():
+    """Carregar um caso converte para a unidade corrente (valor físico)."""
+    window = mkwindow()
+    ft = window.feed_tab
+    from biogassim import cases as _cases
+    case = _cases.default_case()
+    case.feed["flow_mols"] = 250.0
+    ft.flow_unit.setCurrentIndex(3)                     # kmol/h
+    window._apply_case_to_gui(case)
+    assert ft.flow_mols() == pytest.approx(250.0, rel=1e-6)
+    assert ft.flow_spin.value() == pytest.approx(900.0, abs=5e-3)
+
+
+def test_parametric_flow_study_grid():
+    """Varredura de vazão: base vem do feed (bug pré-existente de KeyError)."""
+    from biogassim.gui.tabs import _PARAM_STUDIES
+    window = mkwindow()
+    window.feed_tab.set_flow_mols(80.0)
+    window.study_tab.study_cmb.setCurrentIndex(
+        [k for k, _ in _PARAM_STUDIES].index("flow_mols"))
+    grid = window.study_tab._grid()
+    assert len(grid) >= 3
+    assert grid[0] < 80.0 < grid[-1]
+
+
+def test_flow_unit_mirrored_in_comparison_header():
+    """Cabeçalho da Comparação espelha a unidade escolhida na Alimentação."""
+    window = mkwindow()
+    window.comp_tab._refresh_header()
+    assert window.comp_tab.header_labels["Flow"].text().endswith("mol/s")
+    window.feed_tab.flow_unit.setCurrentIndex(3)            # kmol/h
+    window.comp_tab._refresh_header()
+    assert window.comp_tab.header_labels["Flow"].text().endswith("kmol/h")
+    # valor físico preservado (100 mol/s -> "360,00 kmol/h")
+    assert window.comp_tab.header_labels["Flow"].text().startswith("360")

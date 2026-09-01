@@ -6,6 +6,28 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+### Adicionado (unidades de vazão na GUI, 2026-09-01)
+
+- **Seletor de unidade da vazão de alimentação** (`gui/tabs.py`): combo ao
+  lado do campo "Vazão do biogás" com **mol/s** (SI, padrão), mol/h, kmol/s,
+  kmol/h — fatores fixos — e **kg/h** e **Nm³/h** com fator *dinâmico*
+  calculado pelo backend (`mixture_properties_general`: massa molar e
+  densidade normal dependem da composição). Trocar a unidade preserva o valor
+  físico; o caso (`case.json`) e a CLI continuam guardando sempre
+  `flow_mols` em mol/s — a unidade é preferência de entrada/exibição.
+- **Unidade espelhada nas demais abas**: `FeedTab.format_flow()` formata a
+  vazão na unidade corrente; o cabeçalho "Flow" da sub-aba Configuração da
+  Comparação (leitura, sempre herdada da alimentação) e a mensagem de status
+  "Executando…" seguem a unidade escolhida. **Decisão:** a Comparação não tem
+  vazão própria — comparação de métodos só faz sentido sob o mesmo feed
+  (`--flow` permanece exclusivo da CLI).
+- **Correção**: a varredura "Vazão de biogás" na aba Estudos Paramétricos
+  lia `operating["flow_mols"]` (inexistente — `KeyError`); a base agora vem
+  de `case.feed` (`gui/tabs.py`).
+- **Testes**: 6 novos em `tests/test_gui.py` (conversão fixa/dinâmica,
+  preservação do valor físico, round-trip de caso, grade da varredura,
+  espelhamento no cabeçalho). Suíte completa: **330 testes passando**.
+
 ### Adicionado (modernização da GUI, 2026-08-30)
 
 - **Arquitetura modelo–vista** (`biogassim/gui/`): `state.py` (`AppState`

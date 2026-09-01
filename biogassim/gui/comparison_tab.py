@@ -194,7 +194,7 @@ class ComparisonTab(QtWidgets.QWidget):
         self.header_labels["H2S"].setText(f"{comp.get('H2S', 0)*100:.3f} %")
         self.header_labels["T"].setText(f"{fc['T_K']-273.15:.1f} °C")
         self.header_labels["P"].setText(f"{fc['P_bar']} bar")
-        self.header_labels["Flow"].setText(f"{fc['flow']:.1f} mol/s")
+        self.header_labels["Flow"].setText(self.main.feed_tab.format_flow(fc["flow"]))
         self.header_labels["Modelo"].setText(fc["thermodynamic_model"])
 
     def _on_feed_changed(self):

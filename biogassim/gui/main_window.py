@@ -298,7 +298,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """Estado de alimentação herdado pelas outras abas (fonte única)."""
         return {
             "comp": self.feed_comp(),
-            "flow": self.feed_tab.flow_spin.value(),
+            "flow": self.feed_tab.flow_mols(),
             "P_bar": self.gas_tab.p_spin.value(),
             "T_K": 298.15,                      # feed a 25 °C (modelo isotérmico)
             "tech": self.gas_tab.tech.currentText(),
@@ -309,7 +309,7 @@ class MainWindow(QtWidgets.QMainWindow):
         feed = {s: v for s, v in self.feed_comp().items() if v > 1e-9}
         if not feed:
             feed = {"CH4": 1.0}
-        feed["flow_mols"] = self.feed_tab.flow_spin.value()
+        feed["flow_mols"] = self.feed_tab.flow_mols()
         return cases.Case(
             name=self.project.display_name() or "gui",
             technology=self.gas_tab.tech.currentText(),
@@ -387,7 +387,8 @@ class MainWindow(QtWidgets.QMainWindow):
         case = self._current_case()
         self.app.set_state(STATE_RUNNING)
         self.results_tab.show_message(
-            f"Executando {case.technology} | {case.feed.get('flow_mols')} mol/s | "
+            f"Executando {case.technology} | "
+            f"{self.feed_tab.format_flow(case.feed.get('flow_mols', 0.0))} | "
             f"{case.operating.get('P_bar')} bar…")
         self.app.log(f">>> Executando caso: tech={case.technology} "
                      f"feed={ {k: v for k, v in case.feed.items() if k != 'flow_mols'} } "
@@ -488,7 +489,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _apply_case_to_gui(self, case: cases.Case):
         comp = {s: case.feed.get(s, 0.0) for s in ("CH4", "CO2", "H2S")}
         self.feed_tab.set_composition(comp)
-        self.feed_tab.flow_spin.setValue(float(case.feed.get("flow_mols", 100.0)))
+        self.feed_tab.set_flow_mols(float(case.feed.get("flow_mols", 100.0)))
         idx = self.gas_tab.tech.findText(case.technology)
         if idx >= 0:
             self.gas_tab.tech.setCurrentIndex(idx)
