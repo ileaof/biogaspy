@@ -382,6 +382,17 @@ def test_comparison_tab_engine_inherits_temperature(app):
     assert eng.T_C == 30.0
 
 
+def test_comparison_tab_header_shows_column_temperature(app):
+    """O cabeçalho herdado mostra a T da coluna (não o metadado T_K=25 °C)."""
+    w = MainWindow()
+    w.gas_tab.t_spin.setValue(20.0)
+    tab = w.comp_tab
+    assert tab.header_labels["T coluna"].text() == "20.0 °C"
+    # mudar o spin atualiza o cabeçalho automaticamente (signal feed_changed)
+    w.gas_tab.t_spin.setValue(45.0)
+    assert tab.header_labels["T coluna"].text() == "45.0 °C"
+
+
 def test_comparison_tab_has_two_subtabs(app):
     """A aba de comparação é dividida em Configuração + Resultados."""
     w = MainWindow()

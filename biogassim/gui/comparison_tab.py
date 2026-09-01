@@ -174,7 +174,7 @@ class ComparisonTab(QtWidgets.QWidget):
         box = QtWidgets.QGroupBox("Condições de alimentação (herdadas da aba Simulação)")
         self.header_lay = QtWidgets.QGridLayout(box)
         self.header_labels = {}
-        for col, key in enumerate(["CH4", "CO2", "H2S", "T", "P", "Flow", "Modelo"]):
+        for col, key in enumerate(["CH4", "CO2", "H2S", "T coluna", "P", "Flow", "Modelo"]):
             lab = QtWidgets.QLabel("-")
             lab.setStyleSheet("font-weight: 600;")
             self.header_lay.addWidget(QtWidgets.QLabel(key), 0, col)
@@ -192,7 +192,10 @@ class ComparisonTab(QtWidgets.QWidget):
         self.header_labels["CH4"].setText(f"{comp.get('CH4', 0)*100:.2f} %")
         self.header_labels["CO2"].setText(f"{comp.get('CO2', 0)*100:.2f} %")
         self.header_labels["H2S"].setText(f"{comp.get('H2S', 0)*100:.3f} %")
-        self.header_labels["T"].setText(f"{fc['T_K']-273.15:.1f} °C")
+        # T herdada = temperatura da coluna (Lavagem de Gás) — a mesma que a
+        # engine usa (_build_engine passa T_C); T_K é só o feed pré-compressão
+        self.header_labels["T coluna"].setText(
+            f"{self.main.gas_tab.t_spin.value():.1f} °C")
         self.header_labels["P"].setText(f"{fc['P_bar']} bar")
         self.header_labels["Flow"].setText(self.main.feed_tab.format_flow(fc["flow"]))
         self.header_labels["Modelo"].setText(fc["thermodynamic_model"])

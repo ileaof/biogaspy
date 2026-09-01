@@ -1,0 +1,9 @@
+﻿fix(gui): cabecalho da Comparacao mostra a T da coluna herdada (nao T_K)
+
+O cabeçalho "Condições herdadas" exibia T_K-273.15 (metadado do feed
+pré-compressão, fixo 25 °C) enquanto a engine roda com a T_C da coluna
+(Lavagem de Gás). Agora o rótulo "T coluna" espelha o spin — atualiza
+automaticamente via feed_changed, como a vazão. Teste novo: 20→45 °C
+reflete no cabeçalho. Suíte: 346 testes.
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
