@@ -37,14 +37,14 @@ def _print(m, title):
 def _cmd_run_water(args):
     from .Examples import WaterScrubbing
     m = WaterScrubbing.run_case(P_bar=args.P, L_over_V=args.LV, N_stages=args.N,
-                                height=args.H, flow=args.flow)["metrics"]
+                                height=args.H, flow=args.flow, T_C=args.T)["metrics"]
     _print(m, "WATER SCRUBBING")
 
 
 def _cmd_run_mea(args):
     from .Examples import MEA
     m = MEA.run_case(P_bar=args.P, L_over_V=args.LV, N_stages=args.N,
-                     height=args.H, flow=args.flow)["metrics"]
+                     height=args.H, flow=args.flow, T_C=args.T)["metrics"]
     _print(m, "MEA (AMINA QUÍMICA)")
 
 
@@ -165,7 +165,7 @@ def _parse_assignments(pairs):
     return kv
 
 
-_OP_KEYS = {"P_bar", "L_over_V", "N_stages", "height_m"}
+_OP_KEYS = {"P_bar", "T_C", "L_over_V", "N_stages", "height_m"}
 
 
 def _known_species():
@@ -506,6 +506,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     pw = sub.add_parser("run-water", help="Lavagem com água")
     pw.add_argument("--P", type=float, default=20.0, help="Pressão (bar)")
+    pw.add_argument("--T", type=float, default=20.0, help="Temperatura da coluna (°C)")
     pw.add_argument("--LV", type=float, default=100.0, help="Razão L/V (molar)")
     pw.add_argument("--N", type=int, default=12, help="Número de estágios")
     pw.add_argument("--H", type=float, default=15.0, help="Altura (m)")
@@ -514,6 +515,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     pm = sub.add_parser("run-mea", help="Lavagem com MEA")
     pm.add_argument("--P", type=float, default=2.0, help="Pressão (bar)")
+    pm.add_argument("--T", type=float, default=40.0, help="Temperatura da coluna (°C)")
     pm.add_argument("--LV", type=float, default=20.0, help="Razão L/V (molar)")
     pm.add_argument("--N", type=int, default=8, help="Número de estágios")
     pm.add_argument("--H", type=float, default=12.0, help="Altura (m)")

@@ -33,18 +33,19 @@ def lean_solvent(species, flow: float, T=313.15, P=2e5, w_mea=0.30):
 
 def run_case(P_bar: float = 2.0, L_over_V: float = 20.0, N_stages: int = 8,
              height: float = 12.0, flow: float = 100.0, save: bool = True,
-             composition=None) -> dict:
+             composition=None, T_C: float = 40.0) -> dict:
     species = ["CH4", "CO2", "H2O", "MEA"]
     P = P_bar * 1e5
-    gas_in = biogas_stream(flow, species=species, T=313.15, P=1.01325e5,
+    Tk = float(T_C) + 273.15             # coluna isotérmica: gás e solvente a T_C
+    gas_in = biogas_stream(flow, species=species, T=Tk, P=1.01325e5,
                            composition=composition)
     comp = compress(gas_in, P, eta=0.75)
     gas_feed = comp.out
     # garantir MEA/H2O zerados no gás
     gas_feed = Stream.make(species, gas_feed.z, gas_feed.flow, gas_feed.T, gas_feed.P, "vapor")
-    solv = lean_solvent(species, L_over_V * flow, T=313.15, P=P)
+    solv = lean_solvent(species, L_over_V * flow, T=Tk, P=P)
     spec = AbsorberSpec(N_stages=N_stages, packing="Pall_50",
-                        mode="isothermal", T_op=313.15, pressure=P, height=height,
+                        mode="isothermal", T_op=Tk, pressure=P, height=height,
                         max_iter=400)
     r = Absorber(gas_feed, solv, MEASolvent(), spec).solve()
 

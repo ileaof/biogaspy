@@ -6,6 +6,30 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+### Adicionado (temperatura editável `T_C`, 2026-09-01)
+
+- **Temperatura da coluna como parâmetro operacional** (`T_C`, °C): antes
+  fixa (água: gás 298,15 K/solvente 293,15 K; MEA: 313,15 K), agora editável
+  em toda a pilha — coluna isotérmica com gás, solvente e regeneração à
+  mesma T. Defaults: **water 20 °C**, **mea 40 °C** (`DEFAULT_OPERATING`);
+  case.json antigo sem `T_C` recebe o default ao carregar (round-trip
+  preservado via `validate_case`).
+- **Backend**: `WaterScrubbing.run_case(..., T_C=20.0)` e `MEA.run_case(...,
+  T_C=40.0)` — T propaga para gás de entrada, solvente lean, `T_op` da spec,
+  flashes da regeneração Wellmann e makeup (Water). Validação: T_C em
+  (−273,15, 200] °C.
+- **GUI**: spin "Temperatura da coluna (°C)" na aba Lavagem de Gás (0–80 °C),
+  ao lado da pressão; default aplicado por tecnologia, restaurado ao carregar
+  projeto; varredura "Temperatura da coluna (°C)" nos Estudos Paramétricos.
+- **CLI/estudos**: `run-water`/`run-mea` ganham `--T` (°C); `set`/`sweep`/
+  `sensitivity`/`optimize` aceitam `T_C` (`_OP_KEYS`/`_OP_VARS`). Física
+  verificada: remoção de CO₂ cai com T (solubilidade), ex.: water 10 °C →
+  100%, 30 °C → 99,95%, 40 °C → 68,1%.
+- **Fora do escopo (follow-up)**: adaptadores da Comparação de Métodos
+  mantêm T fixo por método (`ComparisonEngine.T_K` segue metadado).
+- **Testes**: 9 novos (backend/validação/round-trip/monotonia, GUI,
+  CLI `set T_C`). Suíte completa: **339 testes passando**.
+
 ### Adicionado (unidades de vazão na GUI, 2026-09-01)
 
 - **Seletor de unidade da vazão de alimentação** (`gui/tabs.py`): combo ao

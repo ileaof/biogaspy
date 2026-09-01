@@ -449,15 +449,17 @@ class GasWashingTab(QtWidgets.QWidget):
         self.tech.addItems(list(cases.TECHNOLOGIES))
         self.tech.currentTextChanged.connect(main._on_tech_changed)
         self.p_spin = self._num_spin(0.5, 120.0, 20.0, 1, " bar")
+        self.t_spin = self._num_spin(0.0, 80.0, 20.0, 1, " °C")
         self.lv_spin = self._num_spin(1.0, 1000.0, 100.0, 1, "")
         self.n_spin = QtWidgets.QSpinBox()
         self.n_spin.setRange(1, 60)
         self.n_spin.setValue(12)
         self.h_spin = self._num_spin(1.0, 60.0, 15.0, 1, " m")
-        for sp in (self.p_spin, self.lv_spin, self.n_spin, self.h_spin):
+        for sp in (self.p_spin, self.t_spin, self.lv_spin, self.n_spin, self.h_spin):
             sp.valueChanged.connect(self.main.on_operating_changed)
         form.addRow("Tecnologia", self.tech)
         form.addRow("Pressão da coluna", self.p_spin)
+        form.addRow("Temperatura da coluna", self.t_spin)
         form.addRow("Razão L/V", self.lv_spin)
         form.addRow("Nº de estágios", self.n_spin)
         form.addRow("Altura de recheio", self.h_spin)
@@ -766,6 +768,7 @@ _PARAM_STUDIES = [
     ("h2s", "H₂S na alimentação (0–5 %) — água"),
     ("ch4", "Composição CH₄ (20–95 %)"),
     ("P_bar", "Pressão da coluna (bar)"),
+    ("T_C", "Temperatura da coluna (°C)"),
     ("L_over_V", "Razão L/V"),
     ("N_stages", "Nº de estágios"),
     ("height_m", "Altura de recheio (m)"),
@@ -888,12 +891,13 @@ class ParametricTab(QtWidgets.QWidget):
         return [round(lo + i * (hi - lo) / (n - 1), 10) for i in range(n)]
 
     def _range_for(self, key: str) -> tuple:
-        if key in ("P_bar", "L_over_V", "N_stages", "height_m", "flow_mols"):
+        if key in ("P_bar", "T_C", "L_over_V", "N_stages", "height_m", "flow_mols"):
             case = self.main._current_case()
             # flow_mols vive no feed (em mol/s); os demais, em operating.
             base = float(case.feed["flow_mols"] if key == "flow_mols"
                          else case.operating[key])
-            span = {"P_bar": (0.25, 1.5), "L_over_V": (0.25, 2.0),
+            span = {"P_bar": (0.25, 1.5), "T_C": (0.75, 1.5),
+                    "L_over_V": (0.25, 2.0),
                     "N_stages": (0.5, 2.0), "height_m": (0.25, 2.0),
                     "flow_mols": (0.25, 3.0)}[key]
             lo = max(base * span[0], 0.5 if key != "N_stages" else 1)

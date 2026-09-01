@@ -534,3 +534,38 @@ def test_flow_unit_mirrored_in_comparison_header():
     assert window.comp_tab.header_labels["Flow"].text().endswith("kmol/h")
     # valor físico preservado (100 mol/s -> "360,00 kmol/h")
     assert window.comp_tab.header_labels["Flow"].text().startswith("360")
+
+
+# --------------------------------------------------------------------------- #
+# Temperatura da coluna (T_C)
+# --------------------------------------------------------------------------- #
+def test_temperature_spin_in_case_and_defaults():
+    window = mkwindow()
+    # default água: 20 °C; alimenta o caso operacional
+    assert window.gas_tab.t_spin.value() == pytest.approx(20.0)
+    assert window._current_case().operating["T_C"] == pytest.approx(20.0)
+    # trocar tecnologia aplica o default da tech (MEA = 40 °C)
+    window.gas_tab.tech.setCurrentIndex(1)              # mea
+    assert window.gas_tab.t_spin.value() == pytest.approx(40.0)
+    assert window._current_case().operating["T_C"] == pytest.approx(40.0)
+
+
+def test_temperature_case_roundtrip():
+    window = mkwindow()
+    from biogassim import cases as _cases
+    case = _cases.default_case("t", "water")
+    case.operating["T_C"] = 30.0
+    window._apply_case_to_gui(case)
+    assert window.gas_tab.t_spin.value() == pytest.approx(30.0)
+    assert window._current_case().operating["T_C"] == pytest.approx(30.0)
+
+
+def test_parametric_T_C_study_grid():
+    from biogassim.gui.tabs import _PARAM_STUDIES
+    window = mkwindow()
+    window.gas_tab.t_spin.setValue(20.0)
+    window.study_tab.study_cmb.setCurrentIndex(
+        [k for k, _ in _PARAM_STUDIES].index("T_C"))
+    grid = window.study_tab._grid()
+    assert len(grid) >= 3
+    assert grid[0] < 20.0 < grid[-1]                    # 15..30 °C (span 0.75-1.5)

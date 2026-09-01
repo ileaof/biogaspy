@@ -48,7 +48,7 @@ def run_case(P_bar: float = 20.0, L_over_V: float = 100.0, N_stages: int = 12,
              height: float = 15.0, flow: float = 100.0, save: bool = True,
              composition=None, regen: bool = False,
              dryer_mg_nm3: float | None = None, P_flash1_bar: float | None = None,
-             purge_frac: float = 0.02) -> dict:
+             purge_frac: float = 0.02, T_C: float = 20.0) -> dict:
     # conjunto de espécies montado a partir da composição (multi-gás): água
     # absorve CO2, H2S, NH3 etc.; N2/O2/H2/Ar passam praticamente direto.
     comp_dict = composition or {"CH4": BIOGAS["CH4"], "CO2": BIOGAS["CO2"]}
@@ -57,8 +57,9 @@ def run_case(P_bar: float = 20.0, L_over_V: float = 100.0, N_stages: int = 12,
         gas_species = ["CH4", "CO2"]
     species = [*gas_species, "H2O"]
     P = P_bar * 1e5
-    # compressão do biogás da pressão atmosférica até P
-    gas_in = biogas_stream(flow, species=species, T=298.15, P=1.01325e5,
+    Tk = float(T_C) + 273.15             # coluna isotérmica: gás, solvente e
+    # compressão do biogás da pressão atmosférica até P          regeneração a T_C
+    gas_in = biogas_stream(flow, species=species, T=Tk, P=1.01325e5,
                            composition=comp_dict)
     comp = compress(gas_in, P, eta=0.75)
     gas_feed = comp.out
@@ -70,9 +71,9 @@ def run_case(P_bar: float = 20.0, L_over_V: float = 100.0, N_stages: int = 12,
     z_solv = np.zeros(len(species))
     z_solv[species.index("H2O")] = 1.0
     solv = Stream.make(species, z_solv, flow=L_over_V * flow,
-                       T=293.15, P=P, phase="liquid")
+                       T=Tk, P=P, phase="liquid")
     spec = AbsorberSpec(N_stages=N_stages, packing="Pall_50",
-                        mode="isothermal", T_op=293.15, pressure=P, height=height,
+                        mode="isothermal", T_op=Tk, pressure=P, height=height,
                         max_iter=400)
     if regen:
         # Arquitetura Wellmann (padrão real de water scrubbing), resolvida por
@@ -93,9 +94,9 @@ def run_case(P_bar: float = 20.0, L_over_V: float = 100.0, N_stages: int = 12,
             if not r.converged:
                 break
             regen_result = regen_water(r.liquid_out, P, P_flash1=P_flash1,
-                                       P_flash2=1.0e5, T_flash=293.15,
+                                       P_flash2=1.0e5, T_flash=Tk,
                                        purge_frac=purge_frac)
-            makeup = _makeup_stream(species, P, regen_result.makeup_mols, 293.15)
+            makeup = _makeup_stream(species, P, regen_result.makeup_mols, Tk)
             solv_loop = (_mix_streams(regen_result.lean_out, makeup)
                          if regen_result.makeup_mols > 0 else regen_result.lean_out)
             rec_kw = regen_result.recycle_compression_kW

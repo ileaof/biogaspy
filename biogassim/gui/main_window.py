@@ -315,6 +315,7 @@ class MainWindow(QtWidgets.QMainWindow):
             technology=self.gas_tab.tech.currentText(),
             feed=feed,
             operating={"P_bar": self.gas_tab.p_spin.value(),
+                       "T_C": self.gas_tab.t_spin.value(),
                        "L_over_V": self.gas_tab.lv_spin.value(),
                        "N_stages": int(self.gas_tab.n_spin.value()),
                        "height_m": self.gas_tab.h_spin.value()},
@@ -339,17 +340,20 @@ class MainWindow(QtWidgets.QMainWindow):
         op = cases.DEFAULT_OPERATING.get(str(tech).lower())
         if op:
             self.gas_tab.p_spin.blockSignals(True)
+            self.gas_tab.t_spin.blockSignals(True)
             self.gas_tab.lv_spin.blockSignals(True)
             self.gas_tab.n_spin.blockSignals(True)
             self.gas_tab.h_spin.blockSignals(True)
             try:
                 self.gas_tab.p_spin.setValue(op["P_bar"])
+                self.gas_tab.t_spin.setValue(op["T_C"])
                 self.gas_tab.lv_spin.setValue(op["L_over_V"])
                 self.gas_tab.n_spin.setValue(op["N_stages"])
                 self.gas_tab.h_spin.setValue(op["height_m"])
             finally:
-                for sp in (self.gas_tab.p_spin, self.gas_tab.lv_spin,
-                           self.gas_tab.n_spin, self.gas_tab.h_spin):
+                for sp in (self.gas_tab.p_spin, self.gas_tab.t_spin,
+                           self.gas_tab.lv_spin, self.gas_tab.n_spin,
+                           self.gas_tab.h_spin):
                     sp.blockSignals(False)
         self.feed_changed.emit()
 
@@ -495,6 +499,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.gas_tab.tech.setCurrentIndex(idx)
         op = case.operating or {}
         self.gas_tab.p_spin.setValue(float(op.get("P_bar", self.gas_tab.p_spin.value())))
+        self.gas_tab.t_spin.setValue(float(
+            op.get("T_C", cases.DEFAULT_OPERATING.get(
+                case.technology, {}).get("T_C",
+                                         self.gas_tab.t_spin.value()))))
         self.gas_tab.lv_spin.setValue(float(op.get("L_over_V", self.gas_tab.lv_spin.value())))
         self.gas_tab.n_spin.setValue(int(op.get("N_stages", self.gas_tab.n_spin.value())))
         self.gas_tab.h_spin.setValue(float(op.get("height_m", self.gas_tab.h_spin.value())))

@@ -19,7 +19,7 @@ from . import cases
 # Variáveis varríveis e onde entram no caso.
 _FEED_VARS = {"CH4"}
 _FLOW_VARS = {"flow", "flow_mols"}
-_OP_VARS = {"P_bar", "L_over_V", "N_stages", "height_m"}
+_OP_VARS = {"P_bar", "T_C", "L_over_V", "N_stages", "height_m"}
 VARIABLES = sorted(_FEED_VARS | {"flow_mols"} | _OP_VARS)
 
 _STUDY_METRICS = [

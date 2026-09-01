@@ -171,7 +171,7 @@ Caso salvo em 'meu_projeto/case.json'
     CO2    40.000 %
     TOTAL 100.000 %  [OK]
   Tecnologia : water
-  Operacional: {'P_bar': 20.0, 'L_over_V': 100.0, 'N_stages': 12, 'height_m': 15.0}
+  Operacional: {'P_bar': 20.0, 'L_over_V': 100.0, 'N_stages': 12, 'height_m': 15.0, 'T_C': 20.0}
 ```
 
 ```bash
@@ -287,7 +287,7 @@ Caso salvo em 'projeto_mea/case.json'
   Composicao da alimentacao (normalizada para 100%):
     CH4    55.000 %    CO2    45.000 %    TOTAL 100.000 %  [OK]
   Tecnologia : mea
-  Operacional: {'P_bar': 2.0, 'L_over_V': 20.0, 'N_stages': 8, 'height_m': 12.0}
+  Operacional: {'P_bar': 2.0, 'L_over_V': 20.0, 'N_stages': 8, 'height_m': 12.0, 'T_C': 40.0}
 ```
 
 ```bash
@@ -299,7 +299,7 @@ Caso salvo em 'projeto_mea/case.json'
   Composicao da alimentacao (normalizada para 100%):
     CH4    55.000 %    CO2    45.000 %    TOTAL 100.000 %  [OK]
   Tecnologia : mea
-  Operacional: {'P_bar': 2.5, 'L_over_V': 25.0, 'N_stages': 10, 'height_m': 14.0}
+  Operacional: {'P_bar': 2.5, 'L_over_V': 25.0, 'N_stages': 10, 'height_m': 14.0, 'T_C': 40.0}
 ```
 
 ```bash
@@ -354,8 +354,9 @@ MEA (amina)            S  100.00   99.81 100.00  9813.5   1.847  82.1110
 Exportado: comparacao.xlsx
 ```
 
-**Chaves aceitas por `set`** (parâmetros de processo): `P_bar`, `L_over_V`,
-`N_stages`, `height_m`, `flow_mols` (ou `flow`), `tech` (ou `technology`) e as
+**Chaves aceitas por `set`** (parâmetros de processo): `P_bar`, `T_C`
+(temperatura da coluna, °C), `L_over_V`, `N_stages`, `height_m`, `flow_mols`
+(ou `flow`), `tech` (ou `technology`) e as
 espécies de gás (`CH4`, `CO2`, `H2S`, `N2`, ...). **Temperatura e pressão para
 propriedades** passam como flags em `props`/`batch` (`--T`, `--P`); a pressão do
 processo (absorvedor) é `P_bar` em `set`. O `compare` herda composição e vazão do

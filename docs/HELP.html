@@ -303,7 +303,7 @@ contaminante) e exporta resultados/relatório. As saídas abaixo são reais.</p>
     CO2    40.000 %
     TOTAL 100.000 %  [OK]
   Tecnologia : water
-  Operacional: {'P_bar': 20.0, 'L_over_V': 100.0, 'N_stages': 12, 'height_m': 15.0}
+  Operacional: {'P_bar': 20.0, 'L_over_V': 100.0, 'N_stages': 12, 'height_m': 15.0, 'T_C': 20.0}
 </code></pre>
 <pre class="term"><code>biogassim set CH4=46 CO2=53 H2S=1 --case meu_projeto/case.json  # 3) ternário CH4-CO2-H2S
 </code></pre>
@@ -389,7 +389,7 @@ reativa de H₂S/NH₃ em amina é roadmap — por isso o feed aqui é binário.
   Composicao da alimentacao (normalizada para 100%):
     CH4    55.000 %    CO2    45.000 %    TOTAL 100.000 %  [OK]
   Tecnologia : mea
-  Operacional: {'P_bar': 2.0, 'L_over_V': 20.0, 'N_stages': 8, 'height_m': 12.0}
+  Operacional: {'P_bar': 2.0, 'L_over_V': 20.0, 'N_stages': 8, 'height_m': 12.0, 'T_C': 40.0}
 </code></pre>
 <pre class="term"><code># 3) altera parâmetros de processo: pressão, razão L/V, estágios, altura, vazão
 biogassim set P_bar=2.5 L_over_V=25 N_stages=10 height_m=14 flow_mols=120 --case projeto_mea/case.json
@@ -398,7 +398,7 @@ biogassim set P_bar=2.5 L_over_V=25 N_stages=10 height_m=14 flow_mols=120 --case
   Composicao da alimentacao (normalizada para 100%):
     CH4    55.000 %    CO2    45.000 %    TOTAL 100.000 %  [OK]
   Tecnologia : mea
-  Operacional: {'P_bar': 2.5, 'L_over_V': 25.0, 'N_stages': 10, 'height_m': 14.0}
+  Operacional: {'P_bar': 2.5, 'L_over_V': 25.0, 'N_stages': 10, 'height_m': 14.0, 'T_C': 40.0}
 </code></pre>
 <pre class="term"><code>biogassim run projeto_mea/case.json            # 4) roda o caso MEA, imprime dashboard
 </code></pre>
@@ -440,7 +440,8 @@ MEA (amina)            S  100.00   99.81 100.00  9813.5   1.847  82.1110
   Ranking ponderado (topo): Water Scrubbing (score 0.75)
 Exportado: comparacao.xlsx
 </code></pre>
-<p><strong>Chaves aceitas por <code>set</code></strong> (parâmetros de processo): <code>P_bar</code>, <code>L_over_V</code>,
+<p><strong>Chaves aceitas por <code>set</code></strong> (parâmetros de processo): <code>P_bar</code>, <code>T_C</code>
+(temperatura da coluna, °C), <code>L_over_V</code>,
 <code>N_stages</code>, <code>height_m</code>, <code>flow_mols</code> (ou <code>flow</code>), <code>tech</code> (ou <code>technology</code>) e as
 espécies de gás (<code>CH4</code>, <code>CO2</code>, <code>H2S</code>, <code>N2</code>, ...). <strong>Temperatura e pressão para
 propriedades</strong> passam como flags em <code>props</code>/<code>batch</code> (<code>--T</code>, <code>--P</code>); a pressão do

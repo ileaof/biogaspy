@@ -145,3 +145,59 @@ def test_cli_export_falls_back_when_no_openpyxl(tmp_path):
     main(["export", str(tmp_path / "r.xlsx"), "--case", case])
     # xlsx (se openpyxl instalado) ou csv de fallback
     assert (tmp_path / "r.xlsx").exists() or (tmp_path / "r.csv").exists()
+
+
+# --------------------------- temperatura da coluna -------------------------- #
+def test_default_operating_has_T_C():
+    assert cases.DEFAULT_OPERATING["water"]["T_C"] == pytest.approx(20.0)
+    assert cases.DEFAULT_OPERATING["mea"]["T_C"] == pytest.approx(40.0)
+    c = cases.validate_case(cases.default_case())
+    assert c.operating["T_C"] == pytest.approx(
+        cases.DEFAULT_OPERATING[c.technology]["T_C"])
+
+
+@pytest.mark.parametrize("t_c", [-300.0, 250.0])
+def test_invalid_T_C_rejected(t_c):
+    c = cases.default_case()
+    c.operating["T_C"] = t_c
+    with pytest.raises(ValueError):
+        cases.validate_case(c)
+
+
+def test_T_C_roundtrip_and_legacy_case(tmp_path):
+    import json
+    # caso novo persiste T_C
+    c = cases.default_case(name="t", technology="water")
+    c.operating["T_C"] = 35.0
+    p = tmp_path / "c.json"
+    cases.save_case(c, str(p))
+    assert cases.load_case(str(p)).operating["T_C"] == pytest.approx(35.0)
+    # case.json antigo (sem T_C) recebe o default da tecnologia
+    old = {"name": "velho", "technology": "water",
+           "feed": {"CH4": 0.47, "CO2": 0.53, "flow_mols": 100.0},
+           "operating": {"P_bar": 20.0, "L_over_V": 100.0, "N_stages": 12,
+                         "height_m": 15.0}}
+    p.write_text(json.dumps(old), encoding="utf-8")
+    c2 = cases.load_case(str(p))
+    assert c2.operating["T_C"] == pytest.approx(20.0)
+
+
+def test_higher_T_reduces_CO2_removal():
+    """Física: solubilidade cai com T -> remoção de CO2 não aumenta."""
+    rem = []
+    for t in (10.0, 40.0):
+        c = cases.default_case("t", "water")
+        c.operating["T_C"] = t
+        m = cases.run_case(c)["metrics"]
+        assert m["converged"]
+        rem.append(m["CO2_removal"])
+    assert rem[0] >= rem[1]
+
+
+def test_cli_set_T_C(tmp_path):
+    from biogassim import cases as _cases
+    proj = tmp_path / "proj"
+    _cases.new_project(str(proj))
+    main(["set", "T_C=30", "--case", str(proj / "case.json")])
+    c = _cases.load_case(str(proj / "case.json"))
+    assert c.operating["T_C"] == pytest.approx(30.0)

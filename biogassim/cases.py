@@ -25,8 +25,10 @@ from .Properties import (
 TECHNOLOGIES = {"water": WaterScrubbing, "mea": MEA}
 
 DEFAULT_OPERATING = {
-    "water": {"P_bar": 20.0, "L_over_V": 100.0, "N_stages": 12, "height_m": 15.0},
-    "mea": {"P_bar": 2.0, "L_over_V": 20.0, "N_stages": 8, "height_m": 12.0},
+    "water": {"P_bar": 20.0, "L_over_V": 100.0, "N_stages": 12, "height_m": 15.0,
+              "T_C": 20.0},
+    "mea": {"P_bar": 2.0, "L_over_V": 20.0, "N_stages": 8, "height_m": 12.0,
+            "T_C": 40.0},
 }
 
 
@@ -79,6 +81,9 @@ def validate_case(case: Case) -> Case:
     if (op["N_stages"] < 1 or op["P_bar"] <= 0 or op["height_m"] <= 0
             or op["L_over_V"] <= 0):
         raise ValueError("Parâmetros operacionais devem ser positivos.")
+    if not -273.15 < float(op["T_C"]) <= 200.0:
+        raise ValueError("T_C (temperatura da coluna, °C) deve estar em "
+                         "(-273.15, 200].")
     case.operating = op
     return case
 
@@ -189,7 +194,7 @@ def run_case(case: Case, save: bool = False, outdir: str | None = None) -> dict:
     out = mod.run_case(P_bar=op["P_bar"], L_over_V=op["L_over_V"],
                        N_stages=int(op["N_stages"]), height=op["height_m"],
                        flow=case.feed["flow_mols"], save=False,
-                       composition=composition,
+                       composition=composition, T_C=op["T_C"],
                        **({"regen": regen} if case.technology == "water" else {}))
     m = dict(out["metrics"])
 
