@@ -356,7 +356,16 @@ def test_cli_compare_optimized_mode():
 
 # --------------------------- GUI ------------------------------------------- #
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-pytest.importorskip("biogassim.gui.qt", reason="PySide6/PyQt5 não instalado")
+# pytest>=8: importorskip só pula se o ImportError for do módulo pedido; o
+# biogassim.gui.qt levanta o próprio ImportError (mensagem de instalação), que
+# então quebra a COLEÇÃO em vez de pular. Guarda explícita + skip de módulo.
+try:
+    import biogassim.gui.qt  # noqa: E402, F401
+    _QT_OK = True
+except ImportError:
+    _QT_OK = False
+if not _QT_OK:
+    pytest.skip("PySide6/PyQt5 não instalado", allow_module_level=True)
 
 from biogassim.gui.main_window import MainWindow  # noqa: E402
 from biogassim.gui.qt import QtWidgets  # noqa: E402
