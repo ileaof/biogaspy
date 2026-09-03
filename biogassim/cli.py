@@ -104,7 +104,8 @@ def _cmd_compare(args):
     aliases = {"water": "water", "mea": "mea", "dea": "dea", "mdea": "mdea",
                "selexol": "selexol", "rectisol": "rectisol", "psa": "psa",
                "membrane": "membrane", "membrane-multi": "membrane_multi",
-               "multi": "membrane_multi"}
+               "multi": "membrane_multi", "iron": "iron_sponge",
+               "iron-sponge": "iron_sponge", "fe": "iron_sponge"}
     if args.methods:
         selected = []
         for m in args.methods:
@@ -545,7 +546,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     pc = sub.add_parser("compare", help="Comparar tecnologias de upgrading")
     pc.add_argument("methods", nargs="*", default=[],
-                    help="Métodos: water mea dea mdea selexol rectisol psa membrane membrane-multi")
+                    help="Métodos: water mea dea mdea selexol rectisol psa membrane membrane-multi iron")
     pc.add_argument("--case", default=None, help="Herdar feed (composição/vazão) de um caso JSON")
     pc.add_argument("--flow", type=float, default=None, help="Vazão do biogás (mol/s)")
     pc.add_argument("--mode", default="standard", choices=["standard", "optimized"],

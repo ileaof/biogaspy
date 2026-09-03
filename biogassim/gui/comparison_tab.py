@@ -49,6 +49,7 @@ _COMPARE_METRICS = [
     ("total_kW", "Energia total (kW)"),
     ("specific_kWh_per_Nm3", "Energia específica (kWh/Nm³)"),
     ("water_m3_per_h", "Consumo de água (m³/h)"),
+    ("media_kg_per_yr", "Consumo de meio (kg/ano)"),
     ("opex_usd_yr", "OPEX (USD/ano)"),
     ("specific_cost_usd_per_Nm3", "Custo específico (USD/Nm³)"),
     ("global_efficiency_pct", "Eficiência global (%)"),

@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from . import cases
-from .Examples import PSA, Membrane, MembraneMultiStage, WaterScrubbing
+from .Examples import PSA, IronSponge, Membrane, MembraneMultiStage, WaterScrubbing
 from .Optimization import EnergySummary, compression_energy, regeneration_energy
 from .Properties import mixture_properties_general, normalize_mixture
 from .Properties.components import get
@@ -62,6 +62,7 @@ COLUMNS = [
     ("methane_loss", "Perda CH₄", "%", "{:.2f}"),
     ("product_flow_nm3h", "Vazão gás tratado", "Nm³/h", "{:.2f}"),
     ("water_m3_per_h", "Consumo de água", "m³/h", "{:.2f}"),
+    ("media_kg_per_yr", "Consumo de meio", "kg/ano", "{:.0f}"),
     ("solvent_flow_mols", "Vazão de solvente", "mol/s", "{:.1f}"),
     ("elec_kW", "Energia elétrica", "kW", "{:.2f}"),
     ("thermal_kW", "Energia térmica", "kW", "{:.2f}"),
@@ -107,7 +108,7 @@ class MethodSpec:
     key: str
     label: str
     status: str               # "operational" | "experimental"
-    category: str             # "water" | "amine" | "physical" | "psa" | "membrane"
+    category: str             # "water" | "amine" | "physical" | "psa" | "membrane" | "adsorption"
     params: list[ParamSpec]
     adapter: Callable[[dict, float, dict], dict]
     recommended: bool = True   # entra no conjunto "métodos recomendados"
@@ -305,6 +306,18 @@ def _adapt_membrane_multi(composition, flow, p):
     return m
 
 
+def _adapt_iron_sponge(composition, flow, p):
+    """Leito fixo seco de Fe2O3 (iron sponge): polimento de H2S."""
+    m = IronSponge.run_case(
+        composition=composition, flow=flow, save=False,
+        contact_time_s=p["contact_time_s"], fe2o3_wt=p["fe2o3_wt"],
+        moisture_wt=p["moisture_wt"], H_over_D=p["H_over_D"],
+        regen_mode=p["regen_mode"], air_excess=p["air_excess"],
+        capacity_g_per_g=p["capacity_g_per_g"], P_bar=p["P_bar"],
+        T_C=p.get("T_C", 25.0))["metrics"]
+    return m
+
+
 # ------------------------------ registro de métodos ------------------------- #
 def _method_registry() -> dict[str, MethodSpec]:
     def P(*a, **k):
@@ -377,6 +390,24 @@ def _method_registry() -> dict[str, MethodSpec]:
              P("material", "Material", "", 0.0, 0.0, "Polyimide", 0,
                choices=("Polyimide", "CelluloseAcetate", "Polysulfone", "Silica"))],
             _adapt_membrane_multi),
+        "iron_sponge": MethodSpec(
+            "iron_sponge", "Iron Sponge (leito fixo Fe2O3)", "operational",
+            "adsorption",
+            [P("contact_time_s", "Tempo de contato (EBCT)", "s", 60.0, 180.0,
+               100.0, 0),
+             P("fe2o3_wt", "Teor de Fe2O3 no meio", "fr. máss.", 0.20, 0.60,
+               0.30),
+             P("moisture_wt", "Umidade do meio", "fr. máss.", 0.10, 0.50,
+               0.35),
+             P("H_over_D", "Razão H/D do leito", "", 0.5, 3.0, 1.5),
+             P("regen_mode", "Regeneração", "", 0.0, 0.0, "in_situ", 0,
+               choices=("in_situ", "ex_situ", "none")),
+             P("air_excess", "Excesso de O2 (regen. in-situ)", "fr.", 0.0,
+               2.0, 0.5),
+             P("capacity_g_per_g", "Capacidade g H2S/g Fe2O3", "g/g", 0.05,
+               5.0, 2.5),
+             P("P_bar", "Pressão operação", "bar", 1.0, 10.0, 1.10)],
+            _adapt_iron_sponge),
     }
 
 
@@ -407,6 +438,7 @@ _BENEFIT = {
     "H2S_removal": True, "global_efficiency_pct": True,
     "methane_loss": False, "total_kW": False, "elec_kW": False, "thermal_kW": False,
     "specific_kWh_per_Nm3": False, "water_m3_per_h": False,
+    "media_kg_per_yr": False,
     "solvent_flow_mols": False, "specific_cost_usd_per_Nm3": False,
     "opex_usd_yr": False,
 }
@@ -547,6 +579,8 @@ class ComparisonEngine:
             "psa": ("P_high_bar", [5, 7, 10, 15]),
             "membrane": ("P_feed_bar", [8, 12, 18, 25]),
             "membrane_multi": ("P_feed_bar", [10, 15, 20, 30]),
+            # EBCT: leito maior -> ΔP/kW menor, mas mais meio consumido
+            "iron_sponge": ("contact_time_s", [60, 100, 140, 180]),
         }
         if key not in grids:
             return base
@@ -604,7 +638,8 @@ class ComparisonEngine:
             mm = get(amine).MM if amine in ("MEA", "DEA", "MDEA") else 0.105
             solvent_kg_h = solvent_mols * mm * 3600.0
         # economia (premissas editáveis)
-        econ = self._economics(total_kw, bio_nm3h, water_m3h or 0.0, solvent_kg_h, thermal)
+        econ = self._economics(total_kw, bio_nm3h, water_m3h or 0.0, solvent_kg_h,
+                               thermal, m.get("media_kg_per_yr") or 0.0)
         # qualidade do gás tratado (KPIs)
         lhv = m.get("treated_LHV_MJ_per_Nm3")
         hhv = m.get("treated_HHV_MJ_per_Nm3")
@@ -635,6 +670,8 @@ class ComparisonEngine:
             "methane_loss": m.get("methane_loss"),
             "product_flow_nm3h": round(bio_nm3h, 2),
             "water_m3_per_h": round(water_m3h, 2) if water_m3h is not None else None,
+            "media_kg_per_yr": (round(m["media_kg_per_yr"], 0)
+                                if m.get("media_kg_per_yr") is not None else None),
             "solvent_flow_mols": solvent_mols,
             "elec_kW": round(elec, 2),
             "thermal_kW": round(thermal, 2),
@@ -661,13 +698,15 @@ class ComparisonEngine:
         })
         return row
 
-    def _economics(self, total_kw, bio_nm3h, water_m3h, solvent_kg_h, thermal_kw):
+    def _economics(self, total_kw, bio_nm3h, water_m3h, solvent_kg_h, thermal_kw,
+                   media_kg_yr=0.0):
         e = self.config.economics
         hours = e.get("hours", 8000.0)
         opex = (total_kw * hours * e.get("elec_price", 0.10)
                 + thermal_kw * hours * e.get("thermal_price", 0.04)
                 + water_m3h * hours * e.get("water_price", 0.5)
-                + solvent_kg_h / 1000.0 * hours * e.get("solvent_price", 1500.0))
+                + solvent_kg_h / 1000.0 * hours * e.get("solvent_price", 1500.0)
+                + media_kg_yr / 1000.0 * e.get("media_price_usd_per_t", 400.0))
         nm3_yr = bio_nm3h * hours
         spec = opex / nm3_yr if nm3_yr > 0 else 0.0
         return {"opex_usd_yr": round(opex, 0),

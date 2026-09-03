@@ -77,7 +77,11 @@ Subclasse `Solvents.base.Solvent` implementando `K_value`, `heat_of_absorption`,
 - Não-coluna (PSA, membrana): crie o pacote (`PSA/`, `Membranes/`) com seu próprio
   modelo e um `run_case` em `Examples/` que devolva métricas padronizadas
   (`purity_CH4`, `recovery_CH4`, `CO2_removal`, `total_kW`, ...) — o `CompareAll`
-  agrega automaticamente.
+  agrega automaticamente. O **iron sponge** (`UnitOperations/IronSponge.py` +
+  `Examples/IronSponge.py`) segue este caminho: unidade de leito fixo
+  (projeto estequiométrico, Ergun) registrada em `comparison.METHODS` com
+  `category="adsorption"` e consumo de meio custado pela premissa
+  `media_price_usd_per_t` (coluna `media_kg_per_yr`).
 
 ## Decisões de projeto
 

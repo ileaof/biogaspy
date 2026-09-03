@@ -44,6 +44,9 @@ MM = {
     "MEA": 0.061088,    # monoetanolamina
     "DEA": 0.105140,    # dietanolamina
     "MDEA": 0.119165,   # metildietanolamina
+    # sólidos usados na estequiometria do iron sponge (NIST)
+    "S": 0.032065,      # enxofre elemental (depositado no leito)
+    "Fe2O3": 0.159687,  # óxido de ferro (III) -- base do meio hidratado
 }
 
 # --------------------------------------------------------------------------- #

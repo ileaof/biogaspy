@@ -3,6 +3,7 @@ from . import (
     MEA,
     PSA,
     CompareAll,
+    IronSponge,
     Membrane,
     MembraneMultiStage,
     Sensitivity,
@@ -10,4 +11,4 @@ from . import (
 )
 
 __all__ = ["WaterScrubbing", "MEA", "PSA", "Membrane", "MembraneMultiStage",
-           "CompareAll", "Sensitivity"]
+           "IronSponge", "CompareAll", "Sensitivity"]

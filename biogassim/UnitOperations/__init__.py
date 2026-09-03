@@ -6,6 +6,7 @@ from .Cooler import CoolerResult, cooler
 from .Dryer import DryerResult, dry_gas
 from .Flash import FlashResult, flash_drum
 from .HeatExchanger import heat_exchanger
+from .IronSponge import IronSpongeResult, IronSpongeSpec, solve
 from .Pump import PumpResult, pump
 from .Regeneration import RegenResult, regen_water
 from .Stripper import strip
@@ -21,4 +22,5 @@ __all__ = [
     "flash_drum", "FlashResult",
     "dry_gas", "DryerResult",
     "regen_water", "RegenResult",
+    "IronSpongeSpec", "IronSpongeResult", "solve",
 ]

@@ -94,6 +94,7 @@ def test_report_includes_T_C():
 # --------------------------- cada método ----------------------------------- #
 @pytest.mark.parametrize("key", [
     "water", "mea", "mdea", "selexol", "psa", "membrane", "membrane_multi",
+    "iron_sponge",
 ])
 def test_each_operational_method_runs(key):
     rows = _engine(FEED_BINARY, (key,)).run()
@@ -115,7 +116,7 @@ def test_experimental_methods_marked():
 # --------------------------- multi-método ---------------------------------- #
 def test_multi_method_comparison_standardizes_all_columns():
     from biogassim.comparison import COLUMNS
-    keys = ("water", "mea", "selexol", "psa", "membrane")
+    keys = ("water", "mea", "selexol", "psa", "membrane", "iron_sponge")
     rows = _engine(FEED_BINARY, keys).run()
     assert {r["method"] for r in rows} == set(keys)
     cols = {c[0] for c in COLUMNS}

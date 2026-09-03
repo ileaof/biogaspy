@@ -86,6 +86,14 @@ a especificação completa (nível Aspen/DWSIM).
       aminas** (MEA/DEA/MDEA) — precisa da especiação ácido-base do H₂S/NH₃ na
       amina (hoje o modelo de amina trata só CO₂); e H₂S nos solventes físicos
       (Selexol/Rectisol já têm Henry de H₂S — falta ligar no runner).
+- [x] **Dessulfurização por óxido de ferro (iron sponge, leito fixo seco)**:
+      *feita* (2026-09) — `UnitOperations/IronSponge.py` (projeto estequiométrico:
+      EBCT/tempo de contato, capacidade g H₂S/g Fe₂O₃, Ergun para ΔP, vida útil e
+      consumo de meio, regeneração in-situ com ar — O₂ residual e diluição do
+      produto — ou ex-situ) registrado como `iron_sponge` na Comparação de
+      Métodos (`compare iron`). *Pendente:* leitos em série/paralelo para vazões
+      grandes, curva de breakthrough (cinética), lavagem úmida com lama de ferro
+      e redox líquido de ferro quelado (Lo-Cat/SulFerox).
 - [x] **H₂S como primeira extensão do binário CH₄–CO₂**: H₂S integrado
       ponta-a-ponta — **kij não-nulos** para Peng-Robinson
       (`Thermodynamics/Interactions.py`, CH₄–CO₂/CH₄–H₂S/CO₂–H₂S) injetados em

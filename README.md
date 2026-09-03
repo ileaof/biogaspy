@@ -4,11 +4,12 @@ Simulador científico de **upgrading de biogás** (remoção de CO₂) em Python
 orientado a objetos e de código aberto. Projeto, análise e comparação de processos de
 purificação para produção de biometano a partir de biogás **47% CH₄ / 53% CO₂**.
 
-> **Status (v0.2):** 251 testes passando. Absorvedor com Newton global e balanço de
+> **Status (v0.2):** 368 testes passando. Absorvedor com Newton global e balanço de
 > energia adiabático; especiação **Kent-Eisenberg** rigorosa (MEA/DEA/MDEA); hidráulica
 > de coluna (flooding de Eckert, perda de carga de Stichlmair); estudos de sensibilidade
 > paramétrica; solventes físicos (Selexol/Rectisol) e MDEA calibrados vs. literatura;
 > **membranas multi-estágio** (mistura completa, reciclo do permeado, cascata em série);
+> **iron sponge** (leito fixo de Fe₂O₃ para remoção de H₂S);
 > **CLI de casos** (composição variável, varredura paramétrica); **GUI** (PySide6/PyQt5);
 > e **composição multicomponente** (CH₄/CO₂/N₂/O₂/H₂/H₂O/H₂S/NH₃/CO/Ar) com propriedades
 > de gás, simulação em lote e estudos paramétricos/otimização.
@@ -105,7 +106,8 @@ biogassim compare --export comparison.xlsx        # exporta relatório (.csv/.js
 ```
 
 Métodos disponíveis: `water`, `mea`, `dea`, `mdea`, `selexol`, `rectisol`,
-`psa`, `membrane`, `membrane-multi` (alias: `multi`). Os marcados como
+`psa`, `membrane`, `membrane-multi` (alias: `multi`), `iron` / `iron-sponge` /
+`fe` (leito fixo de Fe₂O₃ para H₂S). Os marcados como
 *Experimental* (DEA, Rectisol, PSA) são estimativas — aparecem, mas o conjunto
 **Recomendados** traz apenas os operacionais e representativos.
 
@@ -426,6 +428,28 @@ na CLI, campo na GUI; `biogassim.safety.set_max_h2s_treated_ppm`). O simulador
 **nunca** classifica silenciosamente um gás com H₂S significativo como adequado
 para motor — a decisão `engine_suitable` é explícita.
 
+#### Iron sponge (leito fixo seco de Fe₂O₃) — remoção seletiva de H₂S
+
+Além da solubilidade em água, o simulador oferece a dessulfurização clássica por
+**hidróxido de ferro** (leito fixo seco, "iron sponge", FeOOH hidratado), no
+nível de **projeto/engenharia** (Wellinger et al. 2013; critérios GARDN/Wellmann):
+
+- **Carga:** Fe₂O₃·H₂O + 3 H₂S → Fe₂S₃·H₂O + 3 H₂O — CH₄/CO₂ atravessam o leito
+  inalterados (remoção de H₂S ~99,9 % com a EBCT padrão, sem perda de CH₄).
+- **Regeneração in-situ** (dosagem contínua de ar): 2 H₂S + O₂ → 2 S + 2 H₂O.
+  O N₂/O₂ do ar **diluem o gás tratado** (a pureza de CH₄ cai) e o **O₂ residual**
+  é reportado com alerta de segurança (limite configurável, 1 % por padrão).
+- **Regeneração ex-situ** (troca do leito): 2 Fe₂S₃·H₂O + 3/2 O₂ → Fe₂O₃·H₂O + 6 S.
+- **Critérios de projeto:** EBCT 60–120 s (padrão 100 s), teor de Fe₂O₃ ≥ 20 %
+  fr. máss., umidade do meio 30–40 %, T ≤ 50 °C; capacidade ~0,20 g H₂S/g Fe₂O₃
+  (once-through) até ~2,5 g/g acumulada com regenerações.
+- **Saídas:** dimensões do leito (D, H pela EBCT e velocidade máxima), massa de
+  meio, vida útil (dias) e consumo (kg/ano), enxofre depositado (kg/dia), dosagem
+  de ar, ΔP pela equação de **Ergun (1952)**, soprador/compressão e custo do meio
+  (`media_price_usd_per_t` nas premissas de economia).
+
+Exemplo: `biogassim compare water iron --mode optimized`.
+
 ### Estudos paramétricos e otimização
 
 Superfícies de resposta (1-D ou 2-D) sobre qualquer combinação de **composição**
@@ -627,7 +651,8 @@ biogassim/
   Properties/       banco de componentes (CH4, CO2, H2O, N2, H2S, MEA, DEA, MDEA)
   MassTransfer/     difusão, teoria dos dois filmes, correlações (Re, Sc, Sh, HTU/NTU)
   Hydraulics/       recheios, flooding, perda de carga, diâmetro
-  UnitOperations/   Absorvedor (estágios de equilíbrio), Stripper, Compressor, ...
+  UnitOperations/   Absorvedor (estágios de equilíbrio), Stripper, Compressor,
+                    IronSponge (leito fixo de Fe2O3 p/ H2S), Dryer, ...
   Solvents/         água (físico), MEA/DEA/MDEA (químico), Selexol, Rectisol
   PSA/              isoteras (Langmuir/Toth), ciclo PSA
   Membranes/        permeabilidades, modelo solução-difusão
@@ -658,6 +683,7 @@ Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) e [`docs/ROADMAP.md`](docs/RO
 | Selexol / Rectisol | ✅ funcional | solventes físicos (Henry), calibrados vs. literatura |
 | PSA | ~ estimativa | isoterma + seletividade; ciclo dinâmico = roadmap |
 | Membranas | ✅ 1 e multi-estágio | mistura completa (resolve θ); 1 estágio, 2-estágios + reciclo, cascata em série |
+| Iron Sponge (leito fixo Fe₂O₃) | ✅ funcional | polimento de H₂S por projeto estequiométrico (EBCT, Ergun, regen. in-situ/ex-situ, vida útil e consumo de meio) |
 | **Comparação de métodos** | ✅ CLI + GUI | `biogassim compare` / aba *Comparação de Métodos*: mesmo backend (`ComparisonEngine`), tabela, ranking, energia/economia, export |
 
 ## Validação
@@ -677,7 +703,7 @@ Validação sistemática contra Aspen Plus/DWSIM é meta futura (ROADMAP).
 
 ```bash
 pip install -e ".[dev,excel,gui]"   # pytest, pytest-cov, ruff, openpyxl, PySide6
-pytest -q                       # roda os 251 testes (GUI é pulada sem Qt instalado)
+pytest -q                       # roda os 368 testes (GUI é pulada sem Qt instalado)
 pytest --cov=biogassim          # com cobertura
 ruff check biogassim tests      # lint
 ruff check --fix biogassim tests   # corrige o que for auto-corrigível

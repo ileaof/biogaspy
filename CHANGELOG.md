@@ -6,6 +6,31 @@ e o projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+### Adicionado (iron sponge — leito fixo de Fe₂O₃ para H₂S, 2026-09-03)
+
+- **Novo método de remoção de H₂S**: lavagem por **hidróxido de ferro** (leito
+  fixo seco, "iron sponge"), no nível de **projeto/engenharia** — estequiometria
+  de carga/regeneração + critérios da literatura de biogás (Wellinger et al.
+  2013, GARDN/Wellmann). `UnitOperations/IronSponge.py`
+  (`IronSpongeSpec`/`IronSpongeResult`/`solve`) + `Examples/IronSponge.py`.
+- **Física**: remoção heurística pelo tempo de contato (EBCT 60–180 s, padrão
+  100 s → ~99,9 %); dimensionamento pela EBCT com limite de velocidade
+  superficial e razão H/D; capacidade 0,20 g H₂S/g Fe₂O₃ (once-through) ou
+  ~2,5 g/g acumulada (com regenerações); ΔP pela equação de **Ergun (1952)**;
+  regeneração in-situ dosa ar estequiométrico + excesso (O₂ residual e N₂
+  diluem o tratado, com avisos de segurança); vida útil, campanhas/ano,
+  consumo de meio (kg/ano) e enxofre depositado (kg/dia).
+- **Comparação de Métodos**: key `iron_sponge` (aliases CLI `iron`,
+  `iron-sponge`, `fe`), `category="adsorption"`, operacional/recomendado;
+  **coluna nova** `media_kg_per_yr` ("Consumo de meio", kg/ano) e premissa
+  econômica `media_price_usd_per_t` (default 400 USD/t) no OPEX; modo
+  *optimized* varre o EBCT; T_C herdada afeta a vazão real e o ΔP.
+- **Constantes**: `MM["S"]` e `MM["Fe2O3"]` (NIST) para a estequiometria.
+- **Testes**: 21 novos (`tests/test_iron_sponge.py`) + iron_sponge na
+  parametrização de métodos da comparação. Suíte completa: **368 testes
+  passando**. Feed sem H₂S é robusto (remoção/vida `None`, sem divisão por
+  zero); balanço de massa fecha a ~1e-16.
+
 ### Adicionado (temperatura editável `T_C`, 2026-09-01)
 
 - **Temperatura da coluna como parâmetro operacional** (`T_C`, °C): antes
