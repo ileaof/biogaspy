@@ -73,3 +73,8 @@ _hutt.txt
 /meu_projeto_report.html
 /projeto_mea_report.html
 Examples/tests/
+
+# --- Saídas locais da GUI (relatórios exportados e caso salvo, regeneráveis) ---
+/comparison*.html
+/*_results_*.html
+/case.json
